@@ -3,26 +3,29 @@ from PySide6.QtWidgets import (
     QPushButton, QFrame, QWidget,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QColor
 
 from interfaz.tema import (
-    COLOR_SUPERFICIE, COLOR_SUPERFICIE_ELEV, COLOR_FONDO_SECUNDARIO,
-    COLOR_BORDE, COLOR_ACENTO_BRILLANTE, COLOR_TEXTO_SECUNDARIO,
-    COLOR_EXITO, COLOR_PELIGRO_OSCURO, COLOR_PELIGRO,
-    fuente_h2, fuente_base, css_boton, a_css,
+    COLOR_SUPERFICIE, COLOR_FONDO_PRIMARIO, COLOR_BORDE,
+    COLOR_ACENTO, COLOR_TEXTO_PRIMARIO, COLOR_TEXTO_SECUNDARIO,
+    COLOR_TEXTO_MUTED, COLOR_EXITO, COLOR_PELIGRO,
+    fuente_h2, fuente_base, fuente_pequena, css_boton, a_css,
 )
 from interfaz.controles_personalizados import crear_spinbox
 
 
-# Diálogo modal para ingresar un proceso manualmente.
-# Expone propiedades: llegada, rafaga, prioridad tras aceptar.
 class DialogoProceso(QDialog):
+    """Diálogo para ingresar un proceso manualmente."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Agregar Proceso")
-        self.setFixedSize(340, 280)
-        self.setStyleSheet(f"QDialog {{ background-color: {a_css(COLOR_SUPERFICIE)}; }}")
+        self.setFixedSize(360, 290)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {a_css(COLOR_SUPERFICIE)};
+            }}
+        """)
 
         self._llegada = 0
         self._rafaga = 4
@@ -30,91 +33,134 @@ class DialogoProceso(QDialog):
 
         self._construir_interfaz()
 
-    # Construye todos los widgets del diálogo.
     def _construir_interfaz(self):
-        layout_principal = QVBoxLayout(self)
-        layout_principal.setContentsMargins(0, 0, 0, 0)
-        layout_principal.setSpacing(0)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
 
-        # ── Cabecera ──────────────────────────────────────────────────────
+        # ── Cabecera ──────────────────────────────────────────────────────────
         cabecera = QWidget()
-        cabecera.setFixedHeight(50)
-        cabecera.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE_ELEV)};")
-        titulo = QLabel("Nuevo Proceso", cabecera)
+        cabecera.setFixedHeight(56)
+        cabecera.setStyleSheet(f"""
+            background-color: {a_css(COLOR_SUPERFICIE)};
+            border-bottom: 3px solid {a_css(COLOR_ACENTO)};
+        """)
+        layout_cab = QVBoxLayout(cabecera)
+        layout_cab.setContentsMargins(20, 10, 20, 0)
+        layout_cab.setSpacing(2)
+
+        titulo = QLabel("Nuevo Proceso")
         titulo.setFont(fuente_h2())
-        titulo.setStyleSheet(f"color: {a_css(COLOR_ACENTO_BRILLANTE)}; background: transparent;")
-        titulo.move(16, 14)
+        titulo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_PRIMARIO)}; background: transparent;")
 
-        separador_top = QFrame()
-        separador_top.setFrameShape(QFrame.HLine)
-        separador_top.setFixedHeight(1)
-        separador_top.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
+        subtitulo = QLabel("Complete los parámetros de tiempo y prioridad")
+        subtitulo.setFont(fuente_pequena())
+        subtitulo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
 
-        layout_principal.addWidget(cabecera)
-        layout_principal.addWidget(separador_top)
+        layout_cab.addWidget(titulo)
+        layout_cab.addWidget(subtitulo)
+        layout.addWidget(cabecera)
 
-        # ── Campos ────────────────────────────────────────────────────────
-        area_campos = QWidget()
-        area_campos.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
-        layout_campos = QVBoxLayout(area_campos)
-        layout_campos.setContentsMargins(18, 12, 18, 12)
-        layout_campos.setSpacing(12)
+        # ── Área de campos ────────────────────────────────────────────────────
+        area = QWidget()
+        area.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
+        layout_area = QVBoxLayout(area)
+        layout_area.setContentsMargins(20, 18, 20, 12)
+        layout_area.setSpacing(14)
 
         self._spin_llegada = crear_spinbox(0, 9999, 0)
         self._spin_rafaga = crear_spinbox(1, 9999, 4)
         self._spin_prioridad = crear_spinbox(1, 5, 1)
 
-        for etiqueta, spin in [
-            ("Tiempo de llegada:", self._spin_llegada),
-            ("Tiempo de ráfaga:", self._spin_rafaga),
-            ("Prioridad  (1 – 5):", self._spin_prioridad),
-        ]:
+        campos = [
+            ("Tiempo de llegada", "Unidades antes de ingresar a la cola", self._spin_llegada),
+            ("Tiempo de ráfaga",  "Unidades de CPU que requiere el proceso", self._spin_rafaga),
+            ("Prioridad  (1 = alta, 5 = baja)", "", self._spin_prioridad),
+        ]
+
+        for etiqueta, hint, spin in campos:
+            contenedor = QWidget()
+            contenedor.setStyleSheet("background: transparent;")
+            col = QVBoxLayout(contenedor)
+            col.setContentsMargins(0, 0, 0, 0)
+            col.setSpacing(3)
+
             fila = QHBoxLayout()
+            fila.setSpacing(10)
+
             lbl = QLabel(etiqueta)
             lbl.setFont(fuente_base())
-            lbl.setStyleSheet(f"color: {a_css(COLOR_TEXTO_SECUNDARIO)}; background: transparent;")
-            lbl.setFixedWidth(160)
-            spin.setFixedWidth(120)
+            lbl.setStyleSheet(f"color: {a_css(COLOR_TEXTO_PRIMARIO)}; background: transparent;")
+            lbl.setMinimumWidth(200)
+
+            spin.setFixedWidth(110)
             fila.addWidget(lbl)
             fila.addWidget(spin)
             fila.addStretch()
-            layout_campos.addLayout(fila)
+            col.addLayout(fila)
 
-        layout_principal.addWidget(area_campos)
-        layout_principal.addStretch()
+            if hint:
+                lbl_hint = QLabel(hint)
+                lbl_hint.setFont(QFont("Segoe UI", 7))
+                lbl_hint.setStyleSheet(
+                    f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; margin-left: 0px;"
+                )
+                col.addWidget(lbl_hint)
 
-        # ── Separador y botones ───────────────────────────────────────────
+            layout_area.addWidget(contenedor)
+
+        layout.addWidget(area)
+        layout.addStretch()
+
+        # ── Separador ─────────────────────────────────────────────────────────
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setFixedHeight(1)
         sep.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
-        layout_principal.addWidget(sep)
+        layout.addWidget(sep)
 
+        # ── Footer con botones ────────────────────────────────────────────────
         pie = QWidget()
-        pie.setFixedHeight(56)
-        pie.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_SECUNDARIO)};")
+        pie.setFixedHeight(58)
+        pie.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
         layout_pie = QHBoxLayout(pie)
-        layout_pie.setContentsMargins(16, 10, 16, 10)
+        layout_pie.setContentsMargins(20, 12, 20, 12)
         layout_pie.setSpacing(10)
 
-        btn_aceptar = QPushButton("✔  Aceptar")
-        btn_aceptar.setFixedSize(130, 32)
-        btn_aceptar.setStyleSheet(css_boton(COLOR_EXITO))
+        layout_pie.addStretch()
+
+        btn_cancelar = QPushButton("Cancelar")
+        btn_cancelar.setFixedSize(110, 34)
+        btn_cancelar.setCursor(Qt.PointingHandCursor)
+        btn_cancelar.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {a_css(COLOR_SUPERFICIE)};
+                color: {a_css(COLOR_TEXTO_SECUNDARIO)};
+                border: 1.5px solid {a_css(COLOR_BORDE)};
+                border-radius: 5px;
+                font-weight: bold;
+                font-size: 8.5pt;
+            }}
+            QPushButton:hover {{
+                background-color: rgb(244,246,251);
+                border-color: rgb(192,198,220);
+            }}
+            QPushButton:pressed {{
+                background-color: rgb(237,240,250);
+            }}
+        """)
+        btn_cancelar.clicked.connect(self.reject)
+
+        btn_aceptar = QPushButton("Agregar proceso")
+        btn_aceptar.setFixedSize(140, 34)
+        btn_aceptar.setStyleSheet(css_boton(COLOR_ACENTO))
         btn_aceptar.setCursor(Qt.PointingHandCursor)
         btn_aceptar.clicked.connect(self._aceptar)
 
-        btn_cancelar = QPushButton("✖  Cancelar")
-        btn_cancelar.setFixedSize(130, 32)
-        btn_cancelar.setStyleSheet(css_boton(COLOR_PELIGRO_OSCURO, COLOR_PELIGRO))
-        btn_cancelar.setCursor(Qt.PointingHandCursor)
-        btn_cancelar.clicked.connect(self.reject)
-
-        layout_pie.addWidget(btn_aceptar)
         layout_pie.addWidget(btn_cancelar)
-        layout_pie.addStretch()
-        layout_principal.addWidget(pie)
+        layout_pie.addWidget(btn_aceptar)
+        layout.addWidget(pie)
 
-    # Valida y guarda los valores antes de cerrar el diálogo con Aceptar.
     def _aceptar(self):
         self._llegada = self._spin_llegada.value()
         self._rafaga = self._spin_rafaga.value()

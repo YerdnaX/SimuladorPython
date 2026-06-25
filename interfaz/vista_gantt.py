@@ -1,30 +1,46 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from PySide6.QtWidgets import QWidget, QScrollBar
-from PySide6.QtCore import Qt, QRect, QPoint, QSize
+from PySide6.QtCore import Qt, QRect, QRectF
 from PySide6.QtGui import (
     QPainter, QColor, QFont, QPen, QBrush, QLinearGradient,
-    QPainterPath, QFontMetrics,
+    QPainterPath, QFontMetrics, QRadialGradient,
 )
 
 from interfaz.tema import (
-    COLOR_FONDO_PRIMARIO, COLOR_FONDO_SECUNDARIO, COLOR_SUPERFICIE,
-    COLOR_SUPERFICIE_ELEV, COLOR_BORDE, COLOR_BORDE_FUERTE,
-    COLOR_TEXTO_MUTED, COLOR_ACENTO_CYAN,
-    fuente_seccion, fuente_mono, aclarar, oscurecer,
+    COLOR_FONDO_PRIMARIO, COLOR_SUPERFICIE, COLOR_SUPERFICIE_ALT,
+    COLOR_BORDE, COLOR_BORDE_FUERTE, COLOR_TEXTO_PRIMARIO,
+    COLOR_TEXTO_SECUNDARIO, COLOR_TEXTO_MUTED, COLOR_ACENTO,
+    fuente_seccion, fuente_pequena, aclarar, oscurecer,
 )
 from modelos.segmento_ejecucion import SegmentoEjecucion
 
 
-# ── Constantes de diseño del diagrama (equivalentes a GanttPanel de WinForms) ─
-_MARGEN_IZQ    = 110
-_ALTO_FILA     = 42
-_MARGEN_TOP    = 34
-_PX_POR_UNIDAD = 30
+# ── Constantes de diseño ──────────────────────────────────────────────────────
+_MARGEN_IZQ    = 136   # Ancho del panel de nombres
+_ALTO_FILA     = 46    # Alto de cada fila de proceso
+_MARGEN_TOP    = 40    # Alto del área de regla/encabezado
+_PX_POR_UNIDAD = 34    # Píxeles por unidad de tiempo
+
+# Colores del Gantt claro
+_CL_FONDO      = QColor(255, 255, 255)   # Fondo blanco
+_CL_REGLA      = QColor(248, 249, 252)   # Fondo de la regla
+_CL_FILA_PAR   = QColor(255, 255, 255)   # Fila par
+_CL_FILA_IMPAR = QColor(249, 250, 254)   # Fila impar (levemente azulado)
+_CL_NOMBRES    = QColor(250, 251, 255)   # Panel de nombres
+_CL_GRID_MIN   = QColor(234, 237, 247)   # Línea de cuadrícula menor
+_CL_GRID_MAJ   = QColor(210, 216, 238)   # Línea de cuadrícula mayor
+_CL_TICK_MIN   = QColor(185, 192, 218)   # Marca menor
+_CL_TICK_MAJ   = QColor(130, 140, 175)   # Marca mayor
+_CL_NUM_MIN    = QColor(170, 178, 205)   # Número menor
+_CL_NUM_MAJ    = QColor(90,  100, 140)   # Número mayor
+_CL_SEP        = QColor(208, 213, 234)   # Separador vertical nombres/timeline
+_CL_CURSOR     = QColor(59,   91, 219)   # Azul institucional para cursor
+_CL_PH_TIT    = QColor(196, 202, 225)   # Placeholder título
+_CL_PH_SUB    = QColor(214, 218, 235)   # Placeholder subtítulo
 
 
-# Almacena el estado de un bloque dibujado en el Gantt.
 @dataclass
 class _BloqueDibujado:
     proceso: str
@@ -35,14 +51,18 @@ class _BloqueDibujado:
     es_idle: bool = False
 
 
-# Widget personalizado que dibuja el diagrama de Gantt en tiempo real.
-# Cada fila representa un proceso; los bloques se rellenan tick a tick.
-# Soporta scroll horizontal cuando el tiempo total supera el ancho visible.
 class VistaGantt(QWidget):
+    """
+    Diagrama de Gantt con tema claro institucional.
+    Panel izquierdo: nombres con chip de color.
+    Timeline: cuadrícula suave, barras redondeadas de color vivo,
+    cursor azul, regla compacta con marcas por unidad.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumHeight(100)
+        self.setStyleSheet("background: white;")
 
         self._segmentos: List[SegmentoEjecucion] = []
         self._mapa_colores: Dict[str, QColor] = {}
@@ -52,17 +72,31 @@ class VistaGantt(QWidget):
         self._bloques: List[_BloqueDibujado] = []
         self._bloque_actual: Optional[_BloqueDibujado] = None
 
-        # Scrollbar horizontal
         self._scroll = QScrollBar(Qt.Horizontal, self)
-        self._scroll.setFixedHeight(14)
+        self._scroll.setFixedHeight(12)
+        self._scroll.setStyleSheet("""
+            QScrollBar:horizontal {
+                background: rgb(244,246,251);
+                height: 12px;
+                border: none;
+                border-top: 1px solid rgb(218,222,238);
+            }
+            QScrollBar::handle:horizontal {
+                background: rgb(192,198,220);
+                border-radius: 5px;
+                min-width: 30px;
+                margin: 2px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: rgb(140,148,172);
+            }
+            QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
+        """)
         self._scroll.valueChanged.connect(self.update)
         self._actualizar_scroll()
 
-    # ─────────────────────────────────────────────────────────────────────
-    # API PÚBLICA
-    # ─────────────────────────────────────────────────────────────────────
+    # ── API PÚBLICA ───────────────────────────────────────────────────────────
 
-    # Inicializa el Gantt con los segmentos y el mapa de colores.
     def inicializar(self, segmentos: List[SegmentoEjecucion],
                     mapa_colores: Dict[str, QColor]) -> None:
         self._segmentos = segmentos
@@ -75,7 +109,6 @@ class VistaGantt(QWidget):
         self._actualizar_scroll()
         self.update()
 
-    # Avanza el Gantt al tick indicado mostrando el proceso en ejecución.
     def avanzar_tick(self, proceso: str, tick_fin: int, color: QColor) -> None:
         self._tiempo_actual = tick_fin
 
@@ -99,18 +132,14 @@ class VistaGantt(QWidget):
             self._bloques.append(self._bloque_actual)
             self._bloque_actual = None
 
-        # Auto-scroll cuando el cursor sale del área visible
         cursor_x = _MARGEN_IZQ + self._tiempo_actual * _PX_POR_UNIDAD - self._scroll.value()
         if cursor_x > self.width() - 80:
-            nuevo_valor = min(
-                self._scroll.maximum(),
-                self._scroll.value() + _PX_POR_UNIDAD * 3,
-            )
-            self._scroll.setValue(nuevo_valor)
+            nuevo = min(self._scroll.maximum(),
+                        self._scroll.value() + _PX_POR_UNIDAD * 3)
+            self._scroll.setValue(nuevo)
 
         self.update()
 
-    # Limpia el Gantt y vuelve al estado inicial.
     def resetear(self) -> None:
         self._segmentos.clear()
         self._mapa_colores.clear()
@@ -123,24 +152,19 @@ class VistaGantt(QWidget):
         self._actualizar_scroll()
         self.update()
 
-    # ─────────────────────────────────────────────────────────────────────
-    # REDIMENSIONAMIENTO
-    # ─────────────────────────────────────────────────────────────────────
+    # ── REDIMENSIONAMIENTO ────────────────────────────────────────────────────
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._scroll.setGeometry(0, self.height() - 14, self.width(), 14)
+        self._scroll.setGeometry(0, self.height() - 12, self.width(), 12)
         self._actualizar_scroll()
 
-    # Actualiza el rango del scrollbar según el tiempo máximo y el ancho del widget.
     def _actualizar_scroll(self) -> None:
-        total_ancho = _MARGEN_IZQ + self._tiempo_max * _PX_POR_UNIDAD + 60
-        maximo = max(0, total_ancho - self.width() + 20)
+        total = _MARGEN_IZQ + self._tiempo_max * _PX_POR_UNIDAD + 80
+        maximo = max(0, total - self.width() + 20)
         self._scroll.setMaximum(maximo)
 
-    # ─────────────────────────────────────────────────────────────────────
-    # PINTADO PRINCIPAL
-    # ─────────────────────────────────────────────────────────────────────
+    # ── PINTADO ───────────────────────────────────────────────────────────────
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -148,9 +172,10 @@ class VistaGantt(QWidget):
         painter.setRenderHint(QPainter.TextAntialiasing)
 
         scroll_x = self._scroll.value()
-        panel_h = self.height() - 14  # descontar scrollbar
+        panel_h = self.height() - 12
 
-        painter.fillRect(0, 0, self.width(), panel_h, COLOR_FONDO_PRIMARIO)
+        # Fondo blanco general
+        painter.fillRect(0, 0, self.width(), panel_h, _CL_FONDO)
 
         if not self._orden_procesos:
             self._dibujar_placeholder(painter, panel_h)
@@ -159,36 +184,34 @@ class VistaGantt(QWidget):
         self._dibujar_regla(painter, scroll_x)
         self._dibujar_filas(painter, scroll_x)
         self._dibujar_bloques(painter, scroll_x)
-        self._dibujar_cursor(painter, scroll_x)
-        self._dibujar_separador_nombres(painter, panel_h)
+        self._dibujar_cursor(painter, scroll_x, panel_h)
+        self._dibujar_panel_nombres(painter, panel_h)
 
-    # ─────────────────────────────────────────────────────────────────────
-    # SECCIONES DE DIBUJO
-    # ─────────────────────────────────────────────────────────────────────
+    # ── SECCIONES DE DIBUJO ───────────────────────────────────────────────────
 
-    # Dibuja la regla de tiempo en la parte superior.
     def _dibujar_regla(self, painter: QPainter, scroll_x: int) -> None:
         alto_total = _MARGEN_TOP + len(self._orden_procesos) * _ALTO_FILA
 
-        painter.fillRect(0, 0, self.width(), _MARGEN_TOP, QColor(12, 14, 23))
-        painter.fillRect(0, 0, _MARGEN_IZQ - 1, _MARGEN_TOP, QColor(16, 18, 28))
+        # Fondo de la regla
+        painter.fillRect(0, 0, self.width(), _MARGEN_TOP, _CL_REGLA)
 
-        font_num = QFont("Consolas", 7)
-        brush_minor = QColor(90, 118, 185)
-        brush_major = QColor(140, 168, 228)
-        pen_grid_minor = QPen(QColor(26, 30, 50), 1)
-        pen_grid_major = QPen(QColor(42, 48, 76), 1)
-        pen_tick_minor = QPen(QColor(55, 65, 100), 1)
-        pen_tick_major = QPen(QColor(88, 105, 155), 1)
+        # Fondo del rincón superior izquierdo (panel de nombres en la regla)
+        painter.fillRect(0, 0, _MARGEN_IZQ, _MARGEN_TOP, _CL_NOMBRES)
 
-        painter.setFont(fuente_mono())
-        painter.setPen(COLOR_TEXTO_MUTED)
+        # Etiqueta "PROCESO" centrada en el panel de nombres
+        f_label = QFont("Segoe UI", 7)
+        f_label.setBold(True)
+        f_label.setLetterSpacing(QFont.AbsoluteSpacing, 0.8)
+        painter.setFont(f_label)
+        painter.setPen(_CL_TICK_MAJ)
         painter.drawText(
             QRect(0, 0, _MARGEN_IZQ - 1, _MARGEN_TOP),
             Qt.AlignCenter, "PROCESO"
         )
 
-        painter.setFont(font_num)
+        f_num = QFont("Consolas", 7)
+        painter.setFont(f_num)
+
         for t in range(self._tiempo_max + 2):
             x = _MARGEN_IZQ + t * _PX_POR_UNIDAD - scroll_x
             if x < _MARGEN_IZQ - 5 or x > self.width() + 5:
@@ -196,64 +219,58 @@ class VistaGantt(QWidget):
 
             major = (t % 5 == 0)
 
-            # Línea de grid sobre filas
-            painter.setPen(pen_grid_major if major else pen_grid_minor)
+            # Línea de cuadrícula sobre filas
+            painter.setPen(QPen(_CL_GRID_MAJ if major else _CL_GRID_MIN, 1))
             painter.drawLine(x, _MARGEN_TOP, x, alto_total)
 
             # Marca en la regla
-            tick_h = 11 if major else 6
-            painter.setPen(pen_tick_major if major else pen_tick_minor)
+            tick_h = 10 if major else 5
+            painter.setPen(QPen(_CL_TICK_MAJ if major else _CL_TICK_MIN, 1))
             painter.drawLine(x, _MARGEN_TOP - tick_h, x, _MARGEN_TOP)
 
             # Número de tiempo
-            painter.setPen(brush_major if major else brush_minor)
-            y_num = 2 if major else 5
-            offset_x = -6 if t >= 10 else -3
-            painter.drawText(x + offset_x, y_num, 20, 16, Qt.AlignLeft, str(t))
+            painter.setPen(_CL_NUM_MAJ if major else _CL_NUM_MIN)
+            offset_x = -7 if t >= 10 else -4
+            y_num = 4 if major else 8
+            painter.drawText(x + offset_x, y_num, 20, 18, Qt.AlignLeft, str(t))
 
-    # Dibuja el fondo de cada fila con el nombre del proceso.
+        # Línea inferior de la regla
+        painter.setPen(QPen(_CL_SEP, 1))
+        painter.drawLine(_MARGEN_IZQ, _MARGEN_TOP, self.width(), _MARGEN_TOP)
+
     def _dibujar_filas(self, painter: QPainter, scroll_x: int) -> None:
         for i, nombre in enumerate(self._orden_procesos):
             y = _MARGEN_TOP + i * _ALTO_FILA
-
-            # Fondo alternado
-            color_bg = QColor(17, 19, 30) if i % 2 == 0 else QColor(21, 24, 37)
+            color_bg = _CL_FILA_PAR if i % 2 == 0 else _CL_FILA_IMPAR
             painter.fillRect(_MARGEN_IZQ, y, self.width() - _MARGEN_IZQ, _ALTO_FILA, color_bg)
 
-            # Línea divisora inferior de fila
-            painter.setPen(QPen(QColor(24, 27, 44), 1))
-            painter.drawLine(_MARGEN_IZQ, y + _ALTO_FILA - 1, self.width(), y + _ALTO_FILA - 1)
+            # Línea divisora inferior muy sutil
+            painter.setPen(QPen(_CL_GRID_MIN, 1))
+            painter.drawLine(_MARGEN_IZQ, y + _ALTO_FILA - 1,
+                             self.width(), y + _ALTO_FILA - 1)
 
-            # Columna de nombre
-            painter.fillRect(0, y, _MARGEN_IZQ - 1, _ALTO_FILA, COLOR_FONDO_SECUNDARIO)
+            # Columna de nombres
+            painter.fillRect(0, y, _MARGEN_IZQ - 1, _ALTO_FILA, _CL_NOMBRES)
 
-            # Barra de acento lateral izquierda
-            color_proc = self._mapa_colores.get(nombre, QColor(128, 128, 128))
-            painter.fillRect(0, y + 6, 3, _ALTO_FILA - 12, color_proc)
+            # Chip de color (círculo pequeño)
+            color_proc = self._mapa_colores.get(nombre, QColor(160, 160, 160))
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setBrush(color_proc)
+            painter.setPen(Qt.NoPen)
+            cy = y + _ALTO_FILA // 2
+            painter.drawEllipse(9, cy - 5, 10, 10)
 
-            # Nombre del proceso centrado
-            painter.setFont(fuente_seccion())
-            painter.setPen(color_proc)
+            # Nombre del proceso
+            f_nombre = QFont("Segoe UI", 8)
+            f_nombre.setBold(True)
+            painter.setFont(f_nombre)
+            painter.setPen(COLOR_TEXTO_PRIMARIO)
             painter.drawText(
-                QRect(5, y, _MARGEN_IZQ - 7, _ALTO_FILA),
-                Qt.AlignCenter, nombre
+                QRect(26, y, _MARGEN_IZQ - 30, _ALTO_FILA),
+                Qt.AlignVCenter | Qt.AlignLeft,
+                nombre
             )
 
-            # Líneas de grid vertical en área de Gantt
-            self._dibujar_grid_fila(painter, scroll_x, y, _ALTO_FILA)
-
-    # Dibuja las líneas de grid vertical dentro de una fila.
-    def _dibujar_grid_fila(self, painter: QPainter, scroll_x: int, y: int, h: int) -> None:
-        for t in range(self._tiempo_max + 1):
-            x = _MARGEN_IZQ + t * _PX_POR_UNIDAD - scroll_x
-            if x < _MARGEN_IZQ or x >= self.width():
-                continue
-            major = (t % 5 == 0)
-            pen = QPen(QColor(38, 44, 70) if major else QColor(24, 28, 48), 1)
-            painter.setPen(pen)
-            painter.drawLine(x, y, x, y + h - 1)
-
-    # Dibuja todos los bloques de ejecución completados y el bloque actual.
     def _dibujar_bloques(self, painter: QPainter, scroll_x: int) -> None:
         for bloque in self._bloques:
             self._dibujar_bloque(painter, bloque, bloque.fin_actual, scroll_x)
@@ -261,109 +278,133 @@ class VistaGantt(QWidget):
             self._dibujar_bloque(painter, self._bloque_actual,
                                  self._bloque_actual.fin_actual, scroll_x)
 
-    # Dibuja un bloque individual con gradiente y etiqueta centrada.
     def _dibujar_bloque(self, painter: QPainter, bloque: _BloqueDibujado,
                         fin_dibujado: int, scroll_x: int) -> None:
-        fila_idx = self._orden_procesos.index(bloque.proceso) if bloque.proceso in self._orden_procesos else -1
-        if fila_idx < 0:
+        if bloque.proceso not in self._orden_procesos:
             return
+        fila_idx = self._orden_procesos.index(bloque.proceso)
 
-        PAD = 4
-        y = _MARGEN_TOP + fila_idx * _ALTO_FILA + PAD
-        h = _ALTO_FILA - PAD * 2
-        x = _MARGEN_IZQ + bloque.inicio * _PX_POR_UNIDAD - scroll_x
-        w = (fin_dibujado - bloque.inicio) * _PX_POR_UNIDAD
+        PAD_V = 8   # Margen vertical dentro de la fila
+        PAD_H = 1   # Margen horizontal entre unidades
+        y = _MARGEN_TOP + fila_idx * _ALTO_FILA + PAD_V
+        h = _ALTO_FILA - PAD_V * 2
+        x = _MARGEN_IZQ + bloque.inicio * _PX_POR_UNIDAD - scroll_x + PAD_H
+        w = (fin_dibujado - bloque.inicio) * _PX_POR_UNIDAD - PAD_H * 2
 
         if w <= 0 or x + w < _MARGEN_IZQ or x > self.width():
             return
 
-        x = max(x, _MARGEN_IZQ)
-        rect = QRect(x, y, max(w, 2), h)
+        x_clip = max(x, _MARGEN_IZQ)
+        if x_clip > x:
+            w -= (x_clip - x)
+            x = x_clip
 
-        radio = min(5, h // 3)
-        color_top = aclarar(bloque.color, 40)
-        color_bot = oscurecer(bloque.color, 18)
+        rect = QRectF(x, y, max(w, 2), h)
+        radio = min(6, h // 3)
 
-        # Gradiente vertical
-        gradiente = QLinearGradient(rect.topLeft(), rect.bottomLeft())
-        gradiente.setColorAt(0.0, color_top)
-        gradiente.setColorAt(1.0, color_bot)
+        path = QPainterPath()
+        path.addRoundedRect(rect, radio, radio)
 
-        path = self._rect_redondeado(rect, radio)
-        painter.fillPath(path, gradiente)
+        # Color base plano del bloque
+        color = bloque.color
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillPath(path, color)
 
-        # Borde
-        painter.setPen(QPen(aclarar(bloque.color, 60), 1.0))
+        # Brillo sutil en el borde superior (línea blanca semitransparente)
+        if rect.width() > 6:
+            brillo_rect = QRectF(rect.x() + 2, rect.y() + 2,
+                                 rect.width() - 4, max(1, rect.height() * 0.35))
+            brillo_path = QPainterPath()
+            brillo_path.addRoundedRect(brillo_rect, radio - 1, radio - 1)
+            brillo_color = QColor(255, 255, 255, 55)
+            painter.fillPath(brillo_path, brillo_color)
+
+        # Borde del bloque (ligeramente más oscuro que el color)
+        borde_color = oscurecer(color, 30)
+        borde_color.setAlpha(160)
+        painter.setPen(QPen(borde_color, 1.0))
         painter.drawPath(path)
 
-        # Etiqueta centrada
-        if rect.width() > 20:
-            fuente_etiqueta = QFont("Segoe UI", 8)
-            fuente_etiqueta.setBold(True)
-            painter.setFont(fuente_etiqueta)
+        # Etiqueta centrada (texto blanco, negrita)
+        if rect.width() > 22:
+            f_etiqueta = QFont("Segoe UI", 8)
+            f_etiqueta.setBold(True)
+            painter.setFont(f_etiqueta)
             painter.setPen(QColor(255, 255, 255))
-            painter.drawText(rect, Qt.AlignCenter, bloque.proceso)
+            painter.drawText(rect.toRect(), Qt.AlignCenter, bloque.proceso)
 
-    # Dibuja la línea de cursor de tiempo actual.
-    def _dibujar_cursor(self, painter: QPainter, scroll_x: int) -> None:
+    def _dibujar_cursor(self, painter: QPainter, scroll_x: int, panel_h: int) -> None:
         cursor_x = _MARGEN_IZQ + self._tiempo_actual * _PX_POR_UNIDAD - scroll_x
-        if cursor_x > _MARGEN_IZQ and cursor_x < self.width():
-            cursor_bottom = _MARGEN_TOP + len(self._orden_procesos) * _ALTO_FILA
+        if _MARGEN_IZQ < cursor_x < self.width():
+            bottom = _MARGEN_TOP + len(self._orden_procesos) * _ALTO_FILA
 
-            pen_cursor = QPen(QColor(240, 65, 85), 1.5, Qt.DashLine)
-            painter.setPen(pen_cursor)
-            painter.drawLine(cursor_x, _MARGEN_TOP, cursor_x, cursor_bottom)
+            # Línea discontinua azul (más visible que en tema oscuro)
+            pen = QPen(_CL_CURSOR, 1.5, Qt.DashLine)
+            pen.setDashPattern([4, 3])
+            painter.setPen(pen)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.drawLine(cursor_x, _MARGEN_TOP - 2, cursor_x, bottom)
 
-            # Triángulo en la regla
+            # Triángulo marcador en la regla
             from PySide6.QtGui import QPolygonF
             from PySide6.QtCore import QPointF
-            triangulo = QPolygonF([
+            tri = QPolygonF([
                 QPointF(cursor_x,       _MARGEN_TOP),
                 QPointF(cursor_x - 5.0, _MARGEN_TOP - 9),
                 QPointF(cursor_x + 5.0, _MARGEN_TOP - 9),
             ])
             painter.setPen(Qt.NoPen)
-            painter.setBrush(QColor(240, 65, 85))
-            painter.drawPolygon(triangulo)
+            painter.setBrush(_CL_CURSOR)
+            painter.drawPolygon(tri)
 
-    # Dibuja la línea vertical separadora entre nombres y área de Gantt.
-    def _dibujar_separador_nombres(self, painter: QPainter, panel_h: int) -> None:
-        painter.setPen(QPen(COLOR_BORDE_FUERTE, 1))
+            # Pequeño círculo en la parte inferior del cursor
+            painter.setBrush(_CL_CURSOR)
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(cursor_x - 3, bottom - 4, 6, 6)
+
+    def _dibujar_panel_nombres(self, painter: QPainter, panel_h: int) -> None:
+        # Sombra suave a la derecha del panel de nombres
+        grad = QLinearGradient(_MARGEN_IZQ - 1, 0, _MARGEN_IZQ + 8, 0)
+        grad.setColorAt(0.0, QColor(0, 0, 0, 22))
+        grad.setColorAt(1.0, QColor(0, 0, 0, 0))
+        painter.fillRect(_MARGEN_IZQ - 1, _MARGEN_TOP,
+                         9, len(self._orden_procesos) * _ALTO_FILA, grad)
+
+        # Línea divisoria sólida
+        painter.setPen(QPen(_CL_SEP, 1))
         painter.drawLine(_MARGEN_IZQ - 1, 0, _MARGEN_IZQ - 1, panel_h)
 
-    # Muestra el mensaje de espera cuando no hay datos.
     def _dibujar_placeholder(self, painter: QPainter, panel_h: int) -> None:
-        f_titulo = QFont("Segoe UI", 13)
-        f_titulo.setBold(True)
-        f_sub = QFont("Segoe UI", 10)
+        # Círculo decorativo de fondo
+        cx = self.width() // 2
+        cy = panel_h // 2 - 10
 
-        linea1 = "Diagrama de Gantt"
-        linea2 = "Presione  ▶ Ejecutar  para iniciar la simulación"
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setBrush(QColor(240, 243, 252))
+        painter.setPen(Qt.NoPen)
+        painter.drawEllipse(cx - 36, cy - 40, 72, 72)
 
-        cy = panel_h // 2
+        # Símbolo de Gantt (tres barras horizontales dentro del círculo)
+        painter.setBrush(QColor(192, 200, 228))
+        painter.setPen(Qt.NoPen)
+        for i, (bx, bw) in enumerate([(cx - 18, 36), (cx - 18, 26), (cx - 18, 20)]):
+            by = cy - 22 + i * 14
+            path = QPainterPath()
+            path.addRoundedRect(QRectF(bx, by, bw, 8), 4, 4)
+            painter.fillPath(path, QColor(180, 190, 225))
 
-        painter.setFont(f_titulo)
-        painter.setPen(QColor(50, 56, 88))
-        fm = QFontMetrics(f_titulo)
-        ancho1 = fm.horizontalAdvance(linea1)
-        painter.drawText((self.width() - ancho1) // 2, cy - 20, linea1)
+        # Título
+        f_tit = QFont("Segoe UI", 12)
+        f_tit.setBold(True)
+        painter.setFont(f_tit)
+        painter.setPen(_CL_PH_TIT)
+        fm = QFontMetrics(f_tit)
+        txt1 = "Diagrama de Gantt"
+        painter.drawText((self.width() - fm.horizontalAdvance(txt1)) // 2, cy + 52, txt1)
 
+        f_sub = QFont("Segoe UI", 9)
         painter.setFont(f_sub)
-        painter.setPen(COLOR_TEXTO_MUTED)
+        painter.setPen(_CL_PH_SUB)
         fm2 = QFontMetrics(f_sub)
-        ancho2 = fm2.horizontalAdvance(linea2)
-        painter.drawText((self.width() - ancho2) // 2, cy + 16, linea2)
-
-    # ─────────────────────────────────────────────────────────────────────
-    # UTILIDADES
-    # ─────────────────────────────────────────────────────────────────────
-
-    # Construye un QPainterPath de rectángulo con esquinas redondeadas.
-    @staticmethod
-    def _rect_redondeado(rect: QRect, radio: int) -> QPainterPath:
-        path = QPainterPath()
-        if radio <= 0:
-            path.addRect(rect)
-        else:
-            path.addRoundedRect(rect, radio, radio)
-        return path
+        txt2 = "Presione  ▶ Ejecutar  para iniciar la simulación"
+        painter.drawText((self.width() - fm2.horizontalAdvance(txt2)) // 2, cy + 76, txt2)

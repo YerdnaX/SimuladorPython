@@ -6,17 +6,22 @@ from PySide6.QtWidgets import (
     QScrollArea, QFileDialog, QMessageBox, QTableWidgetItem,
     QStackedWidget, QSizePolicy, QProgressBar,
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QThread
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QPainter, QPen
 
 from interfaz.tema import (
     COLOR_FONDO_PRIMARIO, COLOR_FONDO_SECUNDARIO, COLOR_SUPERFICIE,
-    COLOR_SUPERFICIE_ELEV, COLOR_BORDE, COLOR_ACENTO, COLOR_ACENTO_BRILLANTE,
-    COLOR_ACENTO_CYAN, COLOR_TEXTO_PRIMARIO, COLOR_TEXTO_SECUNDARIO,
-    COLOR_TEXTO_MUTED, COLOR_EXITO, COLOR_EXITO_OSCURO, COLOR_PELIGRO,
-    COLOR_PELIGRO_OSCURO, COLOR_ADVERTENCIA, COLOR_PURPURA, COLOR_PURPURA_OSCURO,
-    COLORES_PROCESOS, fuente_h1, fuente_h2, fuente_base, fuente_pequena,
-    fuente_seccion, fuente_mono_grande, fuente_mono, css_boton, a_css, aclarar,
+    COLOR_SUPERFICIE_ALT, COLOR_SUPERFICIE_ELEV, COLOR_SUPERFICIE_HOVER,
+    COLOR_BORDE, COLOR_BORDE_FUERTE,
+    COLOR_ACENTO, COLOR_ACENTO_BRILLANTE, COLOR_ACENTO_CYAN,
+    COLOR_TEXTO_PRIMARIO, COLOR_TEXTO_SECUNDARIO, COLOR_TEXTO_MUTED,
+    COLOR_EXITO, COLOR_EXITO_OSCURO,
+    COLOR_PELIGRO, COLOR_PELIGRO_OSCURO,
+    COLOR_ADVERTENCIA, COLOR_PURPURA,
+    COLORES_PROCESOS,
+    fuente_h1, fuente_h2, fuente_base, fuente_pequena,
+    fuente_seccion, fuente_mono_grande, fuente_mono,
+    css_boton, a_css, aclarar, oscurecer,
 )
 from interfaz.controles_personalizados import (
     TarjetaTema, ItemNavegacion, crear_boton, crear_tabla,
@@ -42,6 +47,16 @@ from servicios.comparador_algoritmos import comparar_algoritmos
 from servicios.gestor_archivos import guardar_clientes_atendidos
 
 
+# ── Colores semánticos de botones ─────────────────────────────────────────────
+_BTN_ACCION   = COLOR_EXITO            # Verde para ejecutar / agregar
+_BTN_PELIGRO  = COLOR_PELIGRO          # Rojo para eliminar / cancelar
+_BTN_NEUTRO   = COLOR_ACENTO           # Azul para archivo / comparar
+_BTN_PAUSA    = QColor(180, 110,  0)   # Ámbar para pausa
+_BTN_RESET    = COLOR_PURPURA          # Púrpura para reset
+_COLOR_MEJOR_BG  = QColor(210, 248, 220)  # Fondo verde suave (resaltado)
+_COLOR_MEJOR_FG  = QColor(25,  90,  45)   # Texto verde oscuro
+
+
 class VentanaPrincipal(QMainWindow):
 
     def __init__(self):
@@ -59,15 +74,12 @@ class VentanaPrincipal(QMainWindow):
         self._construir_ventana()
         self._cargar_datos_demostracion()
 
-    # ─────────────────────────────────────────────────────────────────────
-    # CONSTRUCCIÓN DE LA INTERFAZ
-    # ─────────────────────────────────────────────────────────────────────
+    # ── CONSTRUCCIÓN DE LA INTERFAZ ───────────────────────────────────────────
 
-    # Construye la estructura principal de la ventana.
     def _construir_ventana(self):
         self.setWindowTitle("Simulador de Planificación de Procesos del SO")
-        self.resize(1380, 950)
-        self.setMinimumSize(1080, 700)
+        self.resize(1420, 960)
+        self.setMinimumSize(1100, 720)
         self.setStyleSheet(f"QMainWindow {{ background-color: {a_css(COLOR_FONDO_PRIMARIO)}; }}")
 
         widget_central = QWidget()
@@ -76,9 +88,7 @@ class VentanaPrincipal(QMainWindow):
         layout_central.setContentsMargins(0, 0, 0, 0)
         layout_central.setSpacing(0)
 
-        # ── Cabecera superior ─────────────────────────────────────────────
-        cabecera = self._crear_cabecera()
-        layout_central.addWidget(cabecera)
+        layout_central.addWidget(self._crear_cabecera())
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
@@ -86,16 +96,13 @@ class VentanaPrincipal(QMainWindow):
         sep.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
         layout_central.addWidget(sep)
 
-        # ── Cuerpo principal (sidebar + contenido) ────────────────────────
         cuerpo = QWidget()
         cuerpo.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
         layout_cuerpo = QHBoxLayout(cuerpo)
         layout_cuerpo.setContentsMargins(0, 0, 0, 0)
         layout_cuerpo.setSpacing(0)
 
-        # Sidebar de navegación
-        sidebar = self._crear_sidebar()
-        layout_cuerpo.addWidget(sidebar)
+        layout_cuerpo.addWidget(self._crear_sidebar())
 
         sep_v = QFrame()
         sep_v.setFrameShape(QFrame.VLine)
@@ -103,15 +110,13 @@ class VentanaPrincipal(QMainWindow):
         sep_v.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
         layout_cuerpo.addWidget(sep_v)
 
-        # Área de contenido con stack
         self._stack = QStackedWidget()
         self._stack.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
         layout_cuerpo.addWidget(self._stack)
 
-        # Construir los tres paneles
-        self._panel_simulador = self._construir_panel_simulador()
+        self._panel_simulador  = self._construir_panel_simulador()
         self._panel_comparacion = self._construir_panel_comparacion()
-        self._panel_bancario = self._construir_panel_bancario()
+        self._panel_bancario   = self._construir_panel_bancario()
 
         self._stack.addWidget(self._panel_simulador)
         self._stack.addWidget(self._panel_comparacion)
@@ -120,48 +125,83 @@ class VentanaPrincipal(QMainWindow):
 
         layout_central.addWidget(cuerpo)
 
-    # Crea la cabecera superior de la ventana.
     def _crear_cabecera(self) -> QWidget:
         cabecera = QWidget()
-        cabecera.setFixedHeight(58)
-        cabecera.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_SECUNDARIO)};")
+        cabecera.setFixedHeight(68)
+        cabecera.setStyleSheet(f"""
+            background-color: {a_css(COLOR_SUPERFICIE)};
+            border-bottom: 3px solid {a_css(COLOR_ACENTO)};
+        """)
 
-        layout = QVBoxLayout(cabecera)
-        layout.setContentsMargins(20, 8, 20, 8)
-        layout.setSpacing(2)
+        layout = QHBoxLayout(cabecera)
+        layout.setContentsMargins(20, 0, 20, 0)
+        layout.setSpacing(14)
 
-        titulo = QLabel("Simulador de Planificación de Procesos")
-        titulo.setFont(fuente_h1())
-        titulo.setStyleSheet(f"color: {a_css(COLOR_ACENTO_BRILLANTE)}; background: transparent;")
+        # Bloque de texto izquierdo
+        bloque_texto = QWidget()
+        bloque_texto.setStyleSheet("background: transparent;")
+        col = QVBoxLayout(bloque_texto)
+        col.setContentsMargins(0, 0, 0, 0)
+        col.setSpacing(3)
 
-        subtitulo = QLabel("FIFO  ·  SJF  ·  Round Robin  ·  MLQ  —  Diagrama de Gantt en Tiempo Real")
+        titulo = QLabel("Simulador de Planificación de Procesos del SO")
+        f_tit = QFont("Segoe UI", 13)
+        f_tit.setBold(True)
+        titulo.setFont(f_tit)
+        titulo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_PRIMARIO)}; background: transparent;")
+
+        subtitulo = QLabel(
+            "FIFO  ·  SJF  ·  Round Robin  ·  MLQ — Visualización de Gantt en tiempo real"
+        )
         subtitulo.setFont(fuente_pequena())
         subtitulo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
 
-        layout.addWidget(titulo)
-        layout.addWidget(subtitulo)
+        col.addWidget(titulo)
+        col.addWidget(subtitulo)
+        layout.addWidget(bloque_texto)
+        layout.addStretch()
+
+        # Badges de algoritmos disponibles
+        for alg in ["FIFO", "SJF", "Round Robin", "MLQ"]:
+            badge = QLabel(alg)
+            badge.setFont(QFont("Segoe UI", 7, QFont.Bold))
+            badge.setAlignment(Qt.AlignCenter)
+            badge.setFixedHeight(22)
+            badge.setContentsMargins(8, 0, 8, 0)
+            badge.setStyleSheet(f"""
+                color: {a_css(COLOR_ACENTO)};
+                background-color: rgb(237, 241, 252);
+                border: 1px solid {a_css(QColor(196, 210, 248))};
+                border-radius: 11px;
+                padding: 0 6px;
+            """)
+            layout.addWidget(badge)
+
         return cabecera
 
-    # Crea el sidebar de navegación lateral.
     def _crear_sidebar(self) -> QWidget:
         sidebar = QWidget()
-        sidebar.setFixedWidth(192)
-        sidebar.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_SECUNDARIO)};")
+        sidebar.setFixedWidth(200)
+        sidebar.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
 
         layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setContentsMargins(0, 8, 0, 8)
+        layout.setSpacing(2)
 
-        lbl_modulos = QLabel("MÓDULOS")
-        lbl_modulos.setFont(fuente_pequena())
-        lbl_modulos.setStyleSheet(
-            f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; padding: 8px 16px 4px 16px;"
+        lbl = QLabel("MÓDULOS")
+        f_lbl = QFont("Segoe UI", 7)
+        f_lbl.setBold(True)
+        f_lbl.setLetterSpacing(QFont.AbsoluteSpacing, 0.8)
+        lbl.setFont(f_lbl)
+        lbl.setStyleSheet(
+            f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; "
+            f"padding: 4px 18px 8px 18px;"
         )
-        layout.addWidget(lbl_modulos)
+        layout.addWidget(lbl)
 
-        self._nav_simulador = ItemNavegacion("⚙", "Simulador")
+        self._nav_simulador  = ItemNavegacion("⚙", "Simulador")
         self._nav_comparacion = ItemNavegacion("📊", "Comparación")
-        self._nav_bancario = ItemNavegacion("🏦", "Sist. Bancario")
+        self._nav_bancario   = ItemNavegacion("🏦", "Sist. Bancario")
 
         self._nav_simulador.seleccionado = True
         self._nav_simulador.clic.connect(lambda: self._cambiar_panel(0))
@@ -176,38 +216,38 @@ class VentanaPrincipal(QMainWindow):
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
         sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
+        sep.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)}; margin: 8px 12px;")
         layout.addWidget(sep)
         layout.addStretch()
+
+        # Pie del sidebar
+        lbl_ver = QLabel("v2.0  —  CUC 2026")
+        lbl_ver.setFont(QFont("Segoe UI", 7))
+        lbl_ver.setAlignment(Qt.AlignCenter)
+        lbl_ver.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; padding: 6px;")
+        layout.addWidget(lbl_ver)
+
         return sidebar
 
-    # Cambia el panel visible y actualiza el estado de los ítems de navegación.
     def _cambiar_panel(self, indice: int):
         self._stack.setCurrentIndex(indice)
         for i, item in enumerate(self._items_nav):
             item.seleccionado = (i == indice)
 
-    # ─────────────────────────────────────────────────────────────────────
-    # PANEL SIMULADOR
-    # ─────────────────────────────────────────────────────────────────────
+    # ── PANEL SIMULADOR ───────────────────────────────────────────────────────
 
-    # Construye el panel principal de simulación con configuración y Gantt.
     def _construir_panel_simulador(self) -> QWidget:
         panel = QWidget()
         panel.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
 
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; width: 2px; }}")
+        splitter.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; width: 1px; }}"
+        )
 
-        # Panel izquierdo: configuración
-        panel_config = self._construir_config_simulador()
-        splitter.addWidget(panel_config)
-
-        # Panel derecho: Gantt + estadísticas
-        panel_gantt_stats = self._construir_area_gantt_simulador()
-        splitter.addWidget(panel_gantt_stats)
-
-        splitter.setSizes([342, 900])
+        splitter.addWidget(self._construir_config_simulador())
+        splitter.addWidget(self._construir_area_gantt_simulador())
+        splitter.setSizes([348, 960])
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
 
@@ -216,35 +256,36 @@ class VentanaPrincipal(QMainWindow):
         layout.addWidget(splitter)
         return panel
 
-    # Construye el área de configuración izquierda del simulador.
     def _construir_config_simulador(self) -> QScrollArea:
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"QScrollArea {{ background-color: {a_css(COLOR_FONDO_PRIMARIO)}; border: none; }}")
+        scroll.setStyleSheet(
+            f"QScrollArea {{ background-color: {a_css(COLOR_SUPERFICIE)}; border: none; }}"
+        )
 
         contenido = QWidget()
-        contenido.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
+        contenido.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
         layout = QVBoxLayout(contenido)
-        layout.setContentsMargins(10, 8, 10, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
 
         lbl_sec = QLabel("CONFIGURACIÓN")
-        lbl_sec.setFont(fuente_pequena())
-        lbl_sec.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
+        f_sec = QFont("Segoe UI", 7)
+        f_sec.setBold(True)
+        f_sec.setLetterSpacing(QFont.AbsoluteSpacing, 0.8)
+        lbl_sec.setFont(f_sec)
+        lbl_sec.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; margin-bottom: 2px;")
         layout.addWidget(lbl_sec)
 
-        # ── Tarjeta: Procesos ─────────────────────────────────────────────
-        tarjeta_proc = TarjetaTema("Procesos")
-        tarjeta_proc.setFixedHeight(228)
+        # ── Tarjeta: Procesos ─────────────────────────────────────────────────
+        tarjeta_proc = TarjetaTema("Procesos de entrada")
+        tarjeta_proc.setFixedHeight(232)
         layout_proc = QVBoxLayout(tarjeta_proc)
         layout_proc.setContentsMargins(0, 0, 0, 0)
         layout_proc.setSpacing(0)
 
         self._tabla_procesos = crear_tabla(["Llegada", "Ráfaga", "Prioridad"])
-        self._tabla_procesos.setColumnWidth(0, 82)
-        self._tabla_procesos.setColumnWidth(1, 82)
-        self._tabla_procesos.setColumnWidth(2, 98)
         layout_proc.addWidget(self._tabla_procesos)
 
         sep_proc = QFrame()
@@ -253,42 +294,42 @@ class VentanaPrincipal(QMainWindow):
         sep_proc.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
         layout_proc.addWidget(sep_proc)
 
-        fila_botones_proc = QWidget()
-        fila_botones_proc.setFixedHeight(36)
-        fila_botones_proc.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
-        layout_btn_proc = QHBoxLayout(fila_botones_proc)
-        layout_btn_proc.setContentsMargins(3, 3, 3, 3)
-        layout_btn_proc.setSpacing(4)
+        fila_btn_proc = QWidget()
+        fila_btn_proc.setFixedHeight(38)
+        fila_btn_proc.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
+        layout_btn = QHBoxLayout(fila_btn_proc)
+        layout_btn.setContentsMargins(6, 5, 6, 5)
+        layout_btn.setSpacing(5)
 
-        self._btn_agregar_proceso = crear_boton("➕ Agregar", COLOR_EXITO_OSCURO, 92, 28)
-        self._btn_eliminar_proceso = crear_boton("🗑 Eliminar", COLOR_PELIGRO_OSCURO, 92, 28)
-        self._btn_cargar_archivo = crear_boton("📂 Archivo", QColor(30, 60, 100), 88, 28)
+        self._btn_agregar_proceso = crear_boton("+ Agregar", _BTN_ACCION, 88, 28)
+        self._btn_eliminar_proceso = crear_boton("Eliminar", _BTN_PELIGRO, 82, 28)
+        self._btn_cargar_archivo = crear_boton("Archivo", _BTN_NEUTRO, 78, 28)
 
         self._btn_agregar_proceso.clicked.connect(self._al_agregar_proceso)
         self._btn_eliminar_proceso.clicked.connect(self._al_eliminar_proceso)
         self._btn_cargar_archivo.clicked.connect(self._al_cargar_archivo)
 
-        layout_btn_proc.addWidget(self._btn_agregar_proceso)
-        layout_btn_proc.addWidget(self._btn_eliminar_proceso)
-        layout_btn_proc.addWidget(self._btn_cargar_archivo)
-        layout_btn_proc.addStretch()
-        layout_proc.addWidget(fila_botones_proc)
+        layout_btn.addWidget(self._btn_agregar_proceso)
+        layout_btn.addWidget(self._btn_eliminar_proceso)
+        layout_btn.addWidget(self._btn_cargar_archivo)
+        layout_btn.addStretch()
+        layout_proc.addWidget(fila_btn_proc)
         layout.addWidget(tarjeta_proc)
 
-        # ── Tarjeta: Algoritmo ────────────────────────────────────────────
-        tarjeta_alg = TarjetaTema("Algoritmo de Planificación")
-        tarjeta_alg.setFixedHeight(118)
+        # ── Tarjeta: Algoritmo ────────────────────────────────────────────────
+        tarjeta_alg = TarjetaTema("Algoritmo de planificación")
+        tarjeta_alg.setFixedHeight(124)
         inner_alg = QWidget(tarjeta_alg)
-        inner_alg.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 84)
+        inner_alg.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 88)
         inner_alg.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
 
         layout_alg = QVBoxLayout(inner_alg)
-        layout_alg.setContentsMargins(8, 6, 8, 6)
-        layout_alg.setSpacing(8)
+        layout_alg.setContentsMargins(10, 8, 10, 8)
+        layout_alg.setSpacing(10)
 
         fila_alg = QHBoxLayout()
         lbl_alg = crear_etiqueta_campo("Algoritmo:")
-        lbl_alg.setFixedWidth(90)
+        lbl_alg.setFixedWidth(88)
         self._combo_algoritmo = crear_combo(["FIFO", "SJF", "Round Robin", "MLQ"])
         self._combo_algoritmo.currentIndexChanged.connect(self._al_cambiar_algoritmo)
         fila_alg.addWidget(lbl_alg)
@@ -298,9 +339,9 @@ class VentanaPrincipal(QMainWindow):
 
         fila_quantum = QHBoxLayout()
         self._lbl_quantum = crear_etiqueta_campo("Quantum:")
-        self._lbl_quantum.setFixedWidth(90)
+        self._lbl_quantum.setFixedWidth(88)
         self._spin_quantum = crear_spinbox(1, 100, 2)
-        self._spin_quantum.setFixedWidth(72)
+        self._spin_quantum.setFixedWidth(76)
         fila_quantum.addWidget(self._lbl_quantum)
         fila_quantum.addWidget(self._spin_quantum)
         fila_quantum.addStretch()
@@ -308,26 +349,25 @@ class VentanaPrincipal(QMainWindow):
 
         layout.addWidget(tarjeta_alg)
 
-        # ── Tarjeta: Config MLQ (oculta inicialmente) ─────────────────────
+        # ── Tarjeta: Config MLQ ───────────────────────────────────────────────
         self._tarjeta_mlq = TarjetaTema("Configuración MLQ")
-        self._tarjeta_mlq.setFixedHeight(165)
+        self._tarjeta_mlq.setFixedHeight(170)
         self._tarjeta_mlq.setVisible(False)
         inner_mlq = QWidget(self._tarjeta_mlq)
-        inner_mlq.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 131)
+        inner_mlq.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 134)
         inner_mlq.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
 
         layout_mlq = QVBoxLayout(inner_mlq)
-        layout_mlq.setContentsMargins(8, 6, 8, 6)
-        layout_mlq.setSpacing(4)
+        layout_mlq.setContentsMargins(10, 8, 10, 8)
+        layout_mlq.setSpacing(6)
 
         algs = ["FIFO", "SJF", "Round Robin"]
-        etiquetas_colas = ["Cola ALTA:", "Cola MEDIA:", "Cola BAJA:"]
-        self._combo_cola_alta = crear_combo(algs, indice=2)
+        self._combo_cola_alta  = crear_combo(algs, indice=2)
         self._combo_cola_media = crear_combo(algs, indice=0)
-        self._combo_cola_baja = crear_combo(algs, indice=1)
-        self._spin_quantum_alta = crear_spinbox(1, 100, 2)
+        self._combo_cola_baja  = crear_combo(algs, indice=1)
+        self._spin_quantum_alta  = crear_spinbox(1, 100, 2)
         self._spin_quantum_media = crear_spinbox(1, 100, 2)
-        self._spin_quantum_baja = crear_spinbox(1, 100, 2)
+        self._spin_quantum_baja  = crear_spinbox(1, 100, 2)
         self._spin_quantum_media.setVisible(False)
         self._spin_quantum_baja.setVisible(False)
 
@@ -339,15 +379,15 @@ class VentanaPrincipal(QMainWindow):
             lambda i: self._spin_quantum_baja.setVisible(i == 2))
 
         for lbl_txt, combo, spin in [
-            (etiquetas_colas[0], self._combo_cola_alta, self._spin_quantum_alta),
-            (etiquetas_colas[1], self._combo_cola_media, self._spin_quantum_media),
-            (etiquetas_colas[2], self._combo_cola_baja, self._spin_quantum_baja),
+            ("Cola ALTA:",  self._combo_cola_alta,  self._spin_quantum_alta),
+            ("Cola MEDIA:", self._combo_cola_media, self._spin_quantum_media),
+            ("Cola BAJA:",  self._combo_cola_baja,  self._spin_quantum_baja),
         ]:
             fila = QHBoxLayout()
             lbl = crear_etiqueta_campo(lbl_txt)
-            lbl.setFixedWidth(82)
-            combo.setFixedWidth(122)
-            spin.setFixedWidth(65)
+            lbl.setFixedWidth(84)
+            combo.setFixedWidth(118)
+            spin.setFixedWidth(68)
             fila.addWidget(lbl)
             fila.addWidget(combo)
             fila.addWidget(spin)
@@ -356,39 +396,39 @@ class VentanaPrincipal(QMainWindow):
 
         layout.addWidget(self._tarjeta_mlq)
 
-        # ── Tarjeta: Control de ejecución ─────────────────────────────────
-        tarjeta_ctrl = TarjetaTema("Control de Ejecución")
-        tarjeta_ctrl.setFixedHeight(116)
+        # ── Tarjeta: Control ──────────────────────────────────────────────────
+        tarjeta_ctrl = TarjetaTema("Control de ejecución")
+        tarjeta_ctrl.setFixedHeight(122)
         inner_ctrl = QWidget(tarjeta_ctrl)
-        inner_ctrl.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 82)
+        inner_ctrl.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 86)
         inner_ctrl.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
 
         layout_ctrl = QVBoxLayout(inner_ctrl)
-        layout_ctrl.setContentsMargins(6, 6, 6, 6)
-        layout_ctrl.setSpacing(6)
+        layout_ctrl.setContentsMargins(8, 8, 8, 8)
+        layout_ctrl.setSpacing(8)
 
-        fila_botones_ctrl = QHBoxLayout()
-        self._btn_ejecutar = crear_boton("▶  Ejecutar", COLOR_EXITO_OSCURO, 100, 34)
-        self._btn_pausar = crear_boton("⏸  Pausar", QColor(160, 100, 0), 90, 34)
-        self._btn_reset = crear_boton("↺  Reset", COLOR_PURPURA_OSCURO, 80, 34)
+        fila_ctrl = QHBoxLayout()
+        self._btn_ejecutar = crear_boton("▶  Ejecutar", _BTN_ACCION, 104, 34)
+        self._btn_pausar   = crear_boton("⏸  Pausar",  _BTN_PAUSA,   94, 34)
+        self._btn_reset    = crear_boton("↺  Reset",   _BTN_RESET,   82, 34)
         self._btn_pausar.setEnabled(False)
 
         self._btn_ejecutar.clicked.connect(self._al_ejecutar)
         self._btn_pausar.clicked.connect(self._al_pausar)
         self._btn_reset.clicked.connect(self._al_reset)
 
-        fila_botones_ctrl.addWidget(self._btn_ejecutar)
-        fila_botones_ctrl.addWidget(self._btn_pausar)
-        fila_botones_ctrl.addWidget(self._btn_reset)
-        fila_botones_ctrl.addStretch()
-        layout_ctrl.addLayout(fila_botones_ctrl)
+        fila_ctrl.addWidget(self._btn_ejecutar)
+        fila_ctrl.addWidget(self._btn_pausar)
+        fila_ctrl.addWidget(self._btn_reset)
+        fila_ctrl.addStretch()
+        layout_ctrl.addLayout(fila_ctrl)
 
         fila_vel = QHBoxLayout()
         lbl_vel = crear_etiqueta_campo("Velocidad (ms):")
-        lbl_vel.setFixedWidth(115)
+        lbl_vel.setFixedWidth(118)
         self._spin_velocidad = crear_spinbox(50, 2000, 500)
         self._spin_velocidad.setSingleStep(50)
-        self._spin_velocidad.setFixedWidth(82)
+        self._spin_velocidad.setFixedWidth(86)
         fila_vel.addWidget(lbl_vel)
         fila_vel.addWidget(self._spin_velocidad)
         fila_vel.addStretch()
@@ -400,55 +440,63 @@ class VentanaPrincipal(QMainWindow):
         scroll.setWidget(contenido)
         return scroll
 
-    # Construye el área derecha del simulador (Gantt + estadísticas).
     def _construir_area_gantt_simulador(self) -> QSplitter:
         splitter_v = QSplitter(Qt.Vertical)
         splitter_v.setStyleSheet(
-            f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; height: 2px; }}"
+            f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; height: 1px; }}"
         )
 
-        # ── Tarjeta Gantt ─────────────────────────────────────────────────
-        tarjeta_gantt = TarjetaTema("Diagrama de Gantt en Tiempo Real")
+        # ── Tarjeta Gantt ─────────────────────────────────────────────────────
+        tarjeta_gantt = TarjetaTema("Diagrama de Gantt — Ejecución en tiempo real")
         layout_gantt = QVBoxLayout(tarjeta_gantt)
         layout_gantt.setContentsMargins(0, 0, 0, 0)
         layout_gantt.setSpacing(0)
 
-        barra_estado = QWidget()
-        barra_estado.setFixedHeight(36)
-        barra_estado.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_SECUNDARIO)};")
-        layout_barra = QHBoxLayout(barra_estado)
-        layout_barra.setContentsMargins(10, 6, 10, 6)
-        layout_barra.setSpacing(10)
+        # Barra de estado (reloj + barra de progreso)
+        barra_est = QWidget()
+        barra_est.setFixedHeight(38)
+        barra_est.setStyleSheet(f"""
+            background-color: {a_css(COLOR_FONDO_PRIMARIO)};
+            border-bottom: 1px solid {a_css(COLOR_BORDE)};
+        """)
+        layout_barra = QHBoxLayout(barra_est)
+        layout_barra.setContentsMargins(12, 8, 12, 8)
+        layout_barra.setSpacing(12)
 
-        self._lbl_reloj = QLabel("⏱  t = 0")
-        self._lbl_reloj.setFont(fuente_mono_grande())
-        self._lbl_reloj.setStyleSheet(f"color: {a_css(COLOR_ACENTO_CYAN)}; background: transparent;")
+        self._lbl_reloj = QLabel("t = 0")
+        f_reloj = QFont("Consolas", 11)
+        f_reloj.setBold(True)
+        self._lbl_reloj.setFont(f_reloj)
+        self._lbl_reloj.setFixedWidth(80)
+        self._lbl_reloj.setStyleSheet(
+            f"color: {a_css(COLOR_ACENTO)}; background: transparent;"
+        )
 
         self._barra_progreso = QProgressBar()
         self._barra_progreso.setTextVisible(False)
-        self._barra_progreso.setFixedHeight(14)
+        self._barra_progreso.setFixedHeight(10)
         self._barra_progreso.setStyleSheet(f"""
             QProgressBar {{
                 background-color: {a_css(COLOR_SUPERFICIE_ELEV)};
                 border: none;
-                border-radius: 3px;
+                border-radius: 5px;
             }}
             QProgressBar::chunk {{
-                background-color: {a_css(COLOR_ACENTO_CYAN)};
-                border-radius: 3px;
+                background-color: {a_css(COLOR_ACENTO)};
+                border-radius: 5px;
             }}
         """)
 
         layout_barra.addWidget(self._lbl_reloj)
         layout_barra.addWidget(self._barra_progreso, 1)
-        layout_gantt.addWidget(barra_estado)
+        layout_gantt.addWidget(barra_est)
 
         self._gantt_simulador = VistaGantt()
         layout_gantt.addWidget(self._gantt_simulador)
         splitter_v.addWidget(tarjeta_gantt)
 
-        # ── Tarjeta Estadísticas ──────────────────────────────────────────
-        tarjeta_stats = TarjetaTema("Estadísticas de Ejecución")
+        # ── Tarjeta Estadísticas ──────────────────────────────────────────────
+        tarjeta_stats = TarjetaTema("Estadísticas de ejecución")
         layout_stats = QVBoxLayout(tarjeta_stats)
         layout_stats.setContentsMargins(0, 0, 0, 0)
         layout_stats.setSpacing(0)
@@ -458,102 +506,105 @@ class VentanaPrincipal(QMainWindow):
         )
         layout_stats.addWidget(self._tabla_estadisticas_sim)
 
-        barra_resumen = QWidget()
-        barra_resumen.setFixedHeight(36)
-        barra_resumen.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE_ELEV)};")
-        layout_resumen = QHBoxLayout(barra_resumen)
-        layout_resumen.setContentsMargins(10, 6, 10, 6)
-        layout_resumen.setSpacing(20)
+        sep_st = QFrame()
+        sep_st.setFrameShape(QFrame.HLine)
+        sep_st.setFixedHeight(1)
+        sep_st.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
+        layout_stats.addWidget(sep_st)
 
-        self._lbl_prom_espera_sim = self._crear_lbl_resumen("Prom. Espera: —")
-        self._lbl_prom_retorno_sim = self._crear_lbl_resumen("Prom. Retorno: —")
-        self._lbl_uso_cpu_sim = self._crear_lbl_resumen("Uso CPU: —")
-
-        layout_resumen.addWidget(self._lbl_prom_espera_sim)
-        layout_resumen.addWidget(self._lbl_prom_retorno_sim)
-        layout_resumen.addWidget(self._lbl_uso_cpu_sim)
-        layout_resumen.addStretch()
-
-        sep_stats = QFrame()
-        sep_stats.setFrameShape(QFrame.HLine)
-        sep_stats.setFixedHeight(1)
-        sep_stats.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
-        layout_stats.addWidget(sep_stats)
-        layout_stats.addWidget(barra_resumen)
+        barra_res = self._crear_barra_resumen_sim()
+        layout_stats.addWidget(barra_res)
         splitter_v.addWidget(tarjeta_stats)
 
-        splitter_v.setSizes([400, 200])
+        splitter_v.setSizes([420, 200])
         return splitter_v
 
-    # ─────────────────────────────────────────────────────────────────────
-    # PANEL COMPARACIÓN
-    # ─────────────────────────────────────────────────────────────────────
+    def _crear_barra_resumen_sim(self) -> QWidget:
+        barra = QWidget()
+        barra.setFixedHeight(42)
+        barra.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
+        layout = QHBoxLayout(barra)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(8)
 
-    # Construye el panel de comparación automática de algoritmos.
+        self._lbl_prom_espera_sim   = self._crear_chip_metrica("Prom. Espera", "—")
+        self._lbl_prom_retorno_sim  = self._crear_chip_metrica("Prom. Retorno", "—")
+        self._lbl_uso_cpu_sim       = self._crear_chip_metrica("Uso CPU", "—")
+
+        layout.addWidget(self._lbl_prom_espera_sim)
+        layout.addWidget(self._lbl_prom_retorno_sim)
+        layout.addWidget(self._lbl_uso_cpu_sim)
+        layout.addStretch()
+        return barra
+
+    # ── PANEL COMPARACIÓN ─────────────────────────────────────────────────────
+
     def _construir_panel_comparacion(self) -> QWidget:
         panel = QWidget()
         panel.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(0)
 
-        tarjeta = TarjetaTema("Comparación Automática — FIFO vs SJF vs Round Robin")
+        tarjeta = TarjetaTema("Comparación automática de algoritmos")
         layout_tarjeta = QVBoxLayout(tarjeta)
         layout_tarjeta.setContentsMargins(0, 0, 0, 0)
         layout_tarjeta.setSpacing(0)
 
-        # Barra superior con descripción y botón
-        barra_top = QWidget()
-        barra_top.setFixedHeight(66)
-        barra_top.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
-        layout_top = QVBoxLayout(barra_top)
-        layout_top.setContentsMargins(10, 6, 10, 6)
-        layout_top.setSpacing(4)
+        # Banda superior con descripción + botón
+        banda = QWidget()
+        banda.setFixedHeight(72)
+        banda.setStyleSheet(f"""
+            background-color: {a_css(COLOR_SUPERFICIE)};
+            border-bottom: 1px solid {a_css(COLOR_BORDE)};
+        """)
+        layout_banda = QVBoxLayout(banda)
+        layout_banda.setContentsMargins(14, 10, 14, 10)
+        layout_banda.setSpacing(5)
 
-        desc = QLabel("Usa los procesos actuales del Simulador para comparar los tres algoritmos con las mismas entradas.")
+        desc = QLabel(
+            "Ejecuta FIFO, SJF y Round Robin sobre los mismos procesos del Simulador "
+            "y compara sus métricas. Los mejores valores se resaltan en verde."
+        )
         desc.setFont(fuente_base())
+        desc.setWordWrap(True)
         desc.setStyleSheet(f"color: {a_css(COLOR_TEXTO_SECUNDARIO)}; background: transparent;")
-        layout_top.addWidget(desc)
+        layout_banda.addWidget(desc)
 
-        self._btn_comparar = crear_boton("🔄  Comparar con procesos actuales",
-                                          QColor(25, 60, 110), 280, 36)
+        self._btn_comparar = crear_boton(
+            "Comparar con procesos actuales", _BTN_NEUTRO, 260, 34
+        )
         self._btn_comparar.clicked.connect(self._al_comparar)
-        layout_top.addWidget(self._btn_comparar)
+        layout_banda.addWidget(self._btn_comparar)
 
-        layout_tarjeta.addWidget(barra_top)
+        layout_tarjeta.addWidget(banda)
 
         self._tabla_comparacion = crear_tabla(
             ["Algoritmo", "Prom. Espera", "Prom. Retorno", "Uso CPU (%)"]
         )
         self._tabla_comparacion.setColumnWidth(0, 240)
         self._tabla_comparacion.setColumnWidth(1, 150)
-        self._tabla_comparacion.setColumnWidth(2, 150)
+        self._tabla_comparacion.setColumnWidth(2, 160)
         self._tabla_comparacion.setColumnWidth(3, 150)
         layout_tarjeta.addWidget(self._tabla_comparacion)
 
         layout.addWidget(tarjeta)
         return panel
 
-    # ─────────────────────────────────────────────────────────────────────
-    # PANEL SISTEMA BANCARIO
-    # ─────────────────────────────────────────────────────────────────────
+    # ── PANEL SISTEMA BANCARIO ────────────────────────────────────────────────
 
-    # Construye el panel del sistema bancario con clientes y MLQ.
     def _construir_panel_bancario(self) -> QWidget:
         panel = QWidget()
         panel.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
 
         splitter = QSplitter(Qt.Horizontal)
-        splitter.setStyleSheet(f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; width: 2px; }}")
+        splitter.setStyleSheet(
+            f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; width: 1px; }}"
+        )
 
-        # Panel izquierdo: configuración clientes
-        panel_clientes = self._construir_config_bancario()
-        splitter.addWidget(panel_clientes)
-
-        # Panel derecho: Gantt + estadísticas bancarias
-        panel_gantt_bco = self._construir_area_gantt_bancario()
-        splitter.addWidget(panel_gantt_bco)
-
-        splitter.setSizes([342, 900])
+        splitter.addWidget(self._construir_config_bancario())
+        splitter.addWidget(self._construir_area_gantt_bancario())
+        splitter.setSizes([348, 960])
         splitter.setCollapsible(0, False)
         splitter.setCollapsible(1, False)
 
@@ -562,35 +613,38 @@ class VentanaPrincipal(QMainWindow):
         layout.addWidget(splitter)
         return panel
 
-    # Construye el área de configuración de clientes bancarios.
     def _construir_config_bancario(self) -> QScrollArea:
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"QScrollArea {{ background-color: {a_css(COLOR_FONDO_PRIMARIO)}; border: none; }}")
+        scroll.setStyleSheet(
+            f"QScrollArea {{ background-color: {a_css(COLOR_SUPERFICIE)}; border: none; }}"
+        )
 
         contenido = QWidget()
-        contenido.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
+        contenido.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
         layout = QVBoxLayout(contenido)
-        layout.setContentsMargins(10, 8, 10, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
 
         lbl_sec = QLabel("CLIENTES BANCARIOS")
-        lbl_sec.setFont(fuente_pequena())
-        lbl_sec.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
+        f_sec = QFont("Segoe UI", 7)
+        f_sec.setBold(True)
+        f_sec.setLetterSpacing(QFont.AbsoluteSpacing, 0.8)
+        lbl_sec.setFont(f_sec)
+        lbl_sec.setStyleSheet(
+            f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; margin-bottom: 2px;"
+        )
         layout.addWidget(lbl_sec)
 
-        # ── Tarjeta: Clientes ─────────────────────────────────────────────
-        tarjeta_cli = TarjetaTema("Registrar Clientes")
-        tarjeta_cli.setFixedHeight(228)
+        # ── Tarjeta: Clientes ─────────────────────────────────────────────────
+        tarjeta_cli = TarjetaTema("Registrar clientes")
+        tarjeta_cli.setFixedHeight(232)
         layout_cli = QVBoxLayout(tarjeta_cli)
         layout_cli.setContentsMargins(0, 0, 0, 0)
         layout_cli.setSpacing(0)
 
         self._tabla_clientes = crear_tabla(["Nombre", "Tipo", "Llegada"])
-        self._tabla_clientes.setColumnWidth(0, 100)
-        self._tabla_clientes.setColumnWidth(1, 114)
-        self._tabla_clientes.setColumnWidth(2, 72)
         layout_cli.addWidget(self._tabla_clientes)
 
         sep_cli = QFrame()
@@ -600,14 +654,14 @@ class VentanaPrincipal(QMainWindow):
         layout_cli.addWidget(sep_cli)
 
         fila_btn_cli = QWidget()
-        fila_btn_cli.setFixedHeight(36)
-        fila_btn_cli.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
+        fila_btn_cli.setFixedHeight(38)
+        fila_btn_cli.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
         layout_btn_cli = QHBoxLayout(fila_btn_cli)
-        layout_btn_cli.setContentsMargins(3, 3, 3, 3)
-        layout_btn_cli.setSpacing(4)
+        layout_btn_cli.setContentsMargins(6, 5, 6, 5)
+        layout_btn_cli.setSpacing(5)
 
-        self._btn_agregar_cliente = crear_boton("➕ Agregar", COLOR_EXITO_OSCURO, 92, 28)
-        self._btn_eliminar_cliente = crear_boton("🗑 Eliminar", COLOR_PELIGRO_OSCURO, 92, 28)
+        self._btn_agregar_cliente = crear_boton("+ Agregar", _BTN_ACCION, 88, 28)
+        self._btn_eliminar_cliente = crear_boton("Eliminar", _BTN_PELIGRO, 82, 28)
         self._btn_agregar_cliente.clicked.connect(self._al_agregar_cliente)
         self._btn_eliminar_cliente.clicked.connect(self._al_eliminar_cliente)
 
@@ -617,16 +671,16 @@ class VentanaPrincipal(QMainWindow):
         layout_cli.addWidget(fila_btn_cli)
         layout.addWidget(tarjeta_cli)
 
-        # ── Tarjeta: Info tipos ───────────────────────────────────────────
-        tarjeta_info = TarjetaTema("Tipos & Tiempos de Atención")
-        tarjeta_info.setFixedHeight(152)
+        # ── Tarjeta: Tipos & Prioridades ──────────────────────────────────────
+        tarjeta_info = TarjetaTema("Tipos y tiempos de atención")
+        tarjeta_info.setFixedHeight(180)
         inner_info = QWidget(tarjeta_info)
-        inner_info.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 118)
+        inner_info.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 144)
         inner_info.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
 
         layout_info = QVBoxLayout(inner_info)
-        layout_info.setContentsMargins(8, 4, 8, 4)
-        layout_info.setSpacing(2)
+        layout_info.setContentsMargins(10, 6, 10, 6)
+        layout_info.setSpacing(4)
 
         tipos_info = [
             ("VIP",         "2 min", "Prioridad 1 — Cola Alta",  COLORES_PROCESOS[0]),
@@ -636,19 +690,49 @@ class VentanaPrincipal(QMainWindow):
             ("FORANEO",     "5 min", "Prioridad 5 — Cola Baja",  COLORES_PROCESOS[4]),
         ]
         for tipo, tiempo, desc, color in tipos_info:
-            lbl = QLabel(f"● {tipo:<12}  {tiempo:<7}  {desc}")
-            lbl.setFont(QFont("Consolas", 7))
-            lbl.setStyleSheet(
-                f"color: rgb({aclarar(color, 28).red()},{aclarar(color, 28).green()},{aclarar(color, 28).blue()}); "
-                f"background: transparent;"
+            fila_tipo = QWidget()
+            fila_tipo.setFixedHeight(22)
+            fila_tipo.setStyleSheet("background: transparent;")
+            h = QHBoxLayout(fila_tipo)
+            h.setContentsMargins(0, 0, 0, 0)
+            h.setSpacing(6)
+
+            # Chip de color
+            chip = QLabel()
+            chip.setFixedSize(10, 10)
+            chip.setStyleSheet(
+                f"background-color: {a_css(color)}; border-radius: 5px;"
             )
-            layout_info.addWidget(lbl)
+
+            lbl_tipo = QLabel(f"{tipo:<12}")
+            lbl_tipo.setFont(QFont("Consolas", 7))
+            lbl_tipo.setStyleSheet(
+                f"color: {a_css(oscurecer(color, 30))}; background: transparent; font-weight: bold;"
+            )
+            lbl_tipo.setFixedWidth(88)
+
+            lbl_tiempo = QLabel(tiempo)
+            lbl_tiempo.setFont(QFont("Segoe UI", 7))
+            lbl_tiempo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
+            lbl_tiempo.setFixedWidth(38)
+
+            lbl_desc = QLabel(desc)
+            lbl_desc.setFont(QFont("Segoe UI", 7))
+            lbl_desc.setStyleSheet(f"color: {a_css(COLOR_TEXTO_SECUNDARIO)}; background: transparent;")
+
+            h.addWidget(chip)
+            h.addWidget(lbl_tipo)
+            h.addWidget(lbl_tiempo)
+            h.addWidget(lbl_desc)
+            h.addStretch()
+            layout_info.addWidget(fila_tipo)
 
         layout.addWidget(tarjeta_info)
 
-        # ── Botón ejecutar MLQ ────────────────────────────────────────────
-        self._btn_ejecutar_bco = crear_boton("▶  Ejecutar MLQ Bancario",
-                                              COLOR_EXITO_OSCURO, 240, 38)
+        # ── Botón ejecutar ────────────────────────────────────────────────────
+        self._btn_ejecutar_bco = crear_boton(
+            "▶  Ejecutar MLQ Bancario", _BTN_ACCION, 244, 38
+        )
         self._btn_ejecutar_bco.clicked.connect(self._al_ejecutar_bancario)
         layout.addWidget(self._btn_ejecutar_bco)
         layout.addStretch()
@@ -656,14 +740,13 @@ class VentanaPrincipal(QMainWindow):
         scroll.setWidget(contenido)
         return scroll
 
-    # Construye el área de Gantt y estadísticas del sistema bancario.
     def _construir_area_gantt_bancario(self) -> QSplitter:
         splitter_v = QSplitter(Qt.Vertical)
         splitter_v.setStyleSheet(
-            f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; height: 2px; }}"
+            f"QSplitter::handle {{ background-color: {a_css(COLOR_BORDE)}; height: 1px; }}"
         )
 
-        tarjeta_gantt = TarjetaTema("Gantt — Sistema Bancario")
+        tarjeta_gantt = TarjetaTema("Gantt — Sistema Bancario MLQ")
         layout_gantt = QVBoxLayout(tarjeta_gantt)
         layout_gantt.setContentsMargins(0, 0, 0, 0)
 
@@ -671,7 +754,7 @@ class VentanaPrincipal(QMainWindow):
         layout_gantt.addWidget(self._gantt_bancario)
         splitter_v.addWidget(tarjeta_gantt)
 
-        tarjeta_stats = TarjetaTema("Estadísticas del Sistema Bancario")
+        tarjeta_stats = TarjetaTema("Estadísticas del sistema bancario")
         layout_stats = QVBoxLayout(tarjeta_stats)
         layout_stats.setContentsMargins(0, 0, 0, 0)
         layout_stats.setSpacing(0)
@@ -681,85 +764,75 @@ class VentanaPrincipal(QMainWindow):
         )
         layout_stats.addWidget(self._tabla_estadisticas_bco)
 
-        barra_resumen_bco = QWidget()
-        barra_resumen_bco.setFixedHeight(36)
-        barra_resumen_bco.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE_ELEV)};")
-        layout_res_bco = QHBoxLayout(barra_resumen_bco)
-        layout_res_bco.setContentsMargins(10, 6, 10, 6)
-        layout_res_bco.setSpacing(20)
-
-        self._lbl_prom_espera_bco = self._crear_lbl_resumen("Prom. Espera: —")
-        self._lbl_prom_retorno_bco = self._crear_lbl_resumen("Prom. Retorno: —")
-        self._lbl_uso_cpu_bco = self._crear_lbl_resumen("Uso CPU: —")
-        layout_res_bco.addWidget(self._lbl_prom_espera_bco)
-        layout_res_bco.addWidget(self._lbl_prom_retorno_bco)
-        layout_res_bco.addWidget(self._lbl_uso_cpu_bco)
-        layout_res_bco.addStretch()
-
         sep_bco = QFrame()
         sep_bco.setFrameShape(QFrame.HLine)
         sep_bco.setFixedHeight(1)
         sep_bco.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
         layout_stats.addWidget(sep_bco)
-        layout_stats.addWidget(barra_resumen_bco)
+
+        barra_res_bco = self._crear_barra_resumen_bco()
+        layout_stats.addWidget(barra_res_bco)
         splitter_v.addWidget(tarjeta_stats)
 
-        splitter_v.setSizes([400, 200])
+        splitter_v.setSizes([420, 200])
         return splitter_v
 
-    # ─────────────────────────────────────────────────────────────────────
-    # DATOS DE DEMOSTRACIÓN
-    # ─────────────────────────────────────────────────────────────────────
+    def _crear_barra_resumen_bco(self) -> QWidget:
+        barra = QWidget()
+        barra.setFixedHeight(42)
+        barra.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
+        layout = QHBoxLayout(barra)
+        layout.setContentsMargins(12, 8, 12, 8)
+        layout.setSpacing(8)
 
-    # Carga los datos de demostración equivalentes al proyecto WinForms.
+        self._lbl_prom_espera_bco  = self._crear_chip_metrica("Prom. Espera", "—")
+        self._lbl_prom_retorno_bco = self._crear_chip_metrica("Prom. Retorno", "—")
+        self._lbl_uso_cpu_bco      = self._crear_chip_metrica("Uso CPU", "—")
+
+        layout.addWidget(self._lbl_prom_espera_bco)
+        layout.addWidget(self._lbl_prom_retorno_bco)
+        layout.addWidget(self._lbl_uso_cpu_bco)
+        layout.addStretch()
+        return barra
+
+    # ── DATOS DE DEMOSTRACIÓN ─────────────────────────────────────────────────
+
     def _cargar_datos_demostracion(self):
-        datos_demo_procesos = [
-            (0, 5, 1), (2, 3, 2), (4, 8, 1), (6, 2, 3), (8, 4, 2),
-        ]
-        for llegada, rafaga, prioridad in datos_demo_procesos:
+        for llegada, rafaga, prioridad in [(0, 5, 1), (2, 3, 2), (4, 8, 1), (6, 2, 3), (8, 4, 2)]:
             agregar_fila_tabla(self._tabla_procesos, [llegada, rafaga, prioridad])
 
-        datos_demo_clientes = [
+        for nombre, tipo, llegada in [
             ("Ana",    "VIP",         0),
             ("Carlos", "ADULTOMAYOR", 1),
             ("María",  "EMBARAZADA",  2),
             ("Luis",   "REGULAR",     3),
             ("Pedro",  "FORANEO",     4),
-        ]
-        for nombre, tipo, llegada in datos_demo_clientes:
+        ]:
             agregar_fila_tabla(self._tabla_clientes, [nombre, tipo, llegada])
 
-    # ─────────────────────────────────────────────────────────────────────
-    # EVENTOS — SIMULADOR
-    # ─────────────────────────────────────────────────────────────────────
+    # ── EVENTOS — SIMULADOR ───────────────────────────────────────────────────
 
-    # Muestra/oculta campos de quantum y configuración MLQ según el algoritmo.
     def _al_cambiar_algoritmo(self, indice: int):
-        es_rr = (indice == 2)
+        es_rr  = (indice == 2)
         es_mlq = (indice == 3)
         self._lbl_quantum.setVisible(es_rr)
         self._spin_quantum.setVisible(es_rr)
         self._tarjeta_mlq.setVisible(es_mlq)
 
-    # Abre el diálogo y agrega el nuevo proceso a la tabla.
     def _al_agregar_proceso(self):
-        dialogo = DialogoProceso(self)
-        if dialogo.exec() == DialogoProceso.Accepted:
-            agregar_fila_tabla(
-                self._tabla_procesos,
-                [dialogo.llegada, dialogo.rafaga, dialogo.prioridad],
-            )
+        dlg = DialogoProceso(self)
+        if dlg.exec() == DialogoProceso.Accepted:
+            agregar_fila_tabla(self._tabla_procesos,
+                               [dlg.llegada, dlg.rafaga, dlg.prioridad])
 
-    # Elimina las filas seleccionadas de la tabla de procesos.
     def _al_eliminar_proceso(self):
         filas = sorted(
             set(item.row() for item in self._tabla_procesos.selectedItems()),
             reverse=True,
         )
-        for fila in filas:
-            self._tabla_procesos.removeRow(fila)
+        for f in filas:
+            self._tabla_procesos.removeRow(f)
 
-    # Carga procesos desde un archivo .txt seleccionado por el usuario.
     def _al_cargar_archivo(self):
         ruta, _ = QFileDialog.getOpenFileName(
             self, "Cargar procesos", "",
@@ -771,19 +844,19 @@ class VentanaPrincipal(QMainWindow):
         if advertencias:
             QMessageBox.warning(self, "Advertencias al cargar", "\n".join(advertencias))
         if not procesos:
-            QMessageBox.warning(self, "Aviso", "No se encontraron procesos válidos.")
+            QMessageBox.warning(self, "Aviso", "No se encontraron procesos válidos en el archivo.")
             return
         self._tabla_procesos.setRowCount(0)
         for p in procesos:
-            agregar_fila_tabla(self._tabla_procesos, [p.tiempo_llegada, p.tiempo_rafaga, p.prioridad])
+            agregar_fila_tabla(self._tabla_procesos,
+                               [p.tiempo_llegada, p.tiempo_rafaga, p.prioridad])
 
-    # Inicia la simulación del algoritmo seleccionado.
     def _al_ejecutar(self):
         if self._simulacion_en_curso:
             return
         procesos = self._leer_procesos_de_tabla()
         if not procesos:
-            QMessageBox.warning(self, "Aviso", "Ingrese al menos un proceso.")
+            QMessageBox.warning(self, "Sin procesos", "Ingrese al menos un proceso antes de ejecutar.")
             return
 
         self._al_reset()
@@ -806,7 +879,6 @@ class VentanaPrincipal(QMainWindow):
         self._barra_progreso.setMaximum(max(s.fin for s in self._segmentos_actuales))
         self._barra_progreso.setValue(0)
 
-        # Preparar la animación tick a tick
         self._segmentos_pendientes = sorted(self._segmentos_actuales, key=lambda s: s.inicio)
         self._indice_seg = 0
         self._tick_en_seg = 0
@@ -814,43 +886,37 @@ class VentanaPrincipal(QMainWindow):
         self._btn_ejecutar.setEnabled(False)
         self._btn_pausar.setEnabled(True)
 
-        delay = self._spin_velocidad.value()
-        self._timer_animacion.start(delay)
+        self._timer_animacion.start(self._spin_velocidad.value())
 
-    # Pausa o reanuda la simulación en curso.
     def _al_pausar(self):
         if self._simulacion_en_curso:
             self._timer_animacion.stop()
             self._simulacion_en_curso = False
             self._btn_pausar.setText("▶ Continuar")
-            self._btn_pausar.setStyleSheet(css_boton(QColor(0, 120, 60)))
+            self._btn_pausar.setStyleSheet(css_boton(COLOR_ACENTO))
             self._btn_ejecutar.setEnabled(True)
         else:
-            # Reanudar
             self._simulacion_en_curso = True
             self._btn_pausar.setText("⏸  Pausar")
-            self._btn_pausar.setStyleSheet(css_boton(QColor(160, 100, 0)))
+            self._btn_pausar.setStyleSheet(css_boton(_BTN_PAUSA))
             self._btn_ejecutar.setEnabled(False)
-            delay = self._spin_velocidad.value()
-            self._timer_animacion.start(delay)
+            self._timer_animacion.start(self._spin_velocidad.value())
 
-    # Detiene la simulación y limpia el Gantt.
     def _al_reset(self):
         self._timer_animacion.stop()
         self._simulacion_en_curso = False
         self._btn_ejecutar.setEnabled(True)
         self._btn_pausar.setEnabled(False)
         self._btn_pausar.setText("⏸  Pausar")
-        self._btn_pausar.setStyleSheet(css_boton(QColor(160, 100, 0)))
-        self._lbl_reloj.setText("⏱  t = 0")
+        self._btn_pausar.setStyleSheet(css_boton(_BTN_PAUSA))
+        self._lbl_reloj.setText("t = 0")
         self._barra_progreso.setValue(0)
         self._gantt_simulador.resetear()
         self._tabla_estadisticas_sim.setRowCount(0)
-        self._lbl_prom_espera_sim.setText("Prom. Espera: —")
-        self._lbl_prom_retorno_sim.setText("Prom. Retorno: —")
-        self._lbl_uso_cpu_sim.setText("Uso CPU: —")
+        self._actualizar_chip("prom_espera_sim", "—")
+        self._actualizar_chip("prom_retorno_sim", "—")
+        self._actualizar_chip("uso_cpu_sim", "—")
 
-    # Tick de animación: avanza un unidad de tiempo en el Gantt.
     def _tick_animacion(self):
         if self._indice_seg >= len(self._segmentos_pendientes):
             self._timer_animacion.stop()
@@ -861,12 +927,11 @@ class VentanaPrincipal(QMainWindow):
             return
 
         seg = self._segmentos_pendientes[self._indice_seg]
-        t_actual = seg.inicio + self._tick_en_seg
-        t_fin = t_actual + 1
+        t_fin = seg.inicio + self._tick_en_seg + 1
         color = self._mapa_colores.get(seg.nombre_proceso, QColor(128, 128, 128))
 
         self._gantt_simulador.avanzar_tick(seg.nombre_proceso, t_fin, color)
-        self._lbl_reloj.setText(f"⏱  t = {t_fin}")
+        self._lbl_reloj.setText(f"t = {t_fin}")
         self._barra_progreso.setValue(min(t_fin, self._barra_progreso.maximum()))
 
         self._tick_en_seg += 1
@@ -874,126 +939,106 @@ class VentanaPrincipal(QMainWindow):
             self._indice_seg += 1
             self._tick_en_seg = 0
 
-        # Ajustar velocidad dinámicamente
         nuevo_delay = self._spin_velocidad.value()
         if self._timer_animacion.interval() != nuevo_delay:
             self._timer_animacion.setInterval(nuevo_delay)
 
-    # ─────────────────────────────────────────────────────────────────────
-    # EVENTOS — COMPARACIÓN
-    # ─────────────────────────────────────────────────────────────────────
+    # ── EVENTOS — COMPARACIÓN ─────────────────────────────────────────────────
 
-    # Ejecuta la comparación de algoritmos con los procesos actuales.
     def _al_comparar(self):
         procesos = self._leer_procesos_de_tabla()
         if not procesos:
-            QMessageBox.warning(self, "Aviso", "Ingrese al menos un proceso.")
+            QMessageBox.warning(self, "Sin procesos",
+                                "Ingrese al menos un proceso en el Simulador.")
             return
 
         self._tabla_comparacion.setRowCount(0)
-        quantum = self._spin_quantum.value()
-        resultados = comparar_algoritmos(procesos, quantum)
+        resultados = comparar_algoritmos(procesos, self._spin_quantum.value())
 
-        for resultado in resultados:
+        for r in resultados:
             agregar_fila_tabla(self._tabla_comparacion, [
-                resultado["algoritmo"],
-                f"{resultado['promedio_espera']:.2f}",
-                f"{resultado['promedio_retorno']:.2f}",
-                f"{resultado['uso_cpu']:.1f}%",
+                r["algoritmo"],
+                f"{r['promedio_espera']:.2f}",
+                f"{r['promedio_retorno']:.2f}",
+                f"{r['uso_cpu']:.1f}%",
             ], centrado=True)
 
-        # Resaltar la mejor fila en columnas 1 (menor espera) y 2 (menor retorno) y 3 (mayor uso)
         self._colorear_mejor(self._tabla_comparacion, 1, mayor_es_mejor=False)
         self._colorear_mejor(self._tabla_comparacion, 2, mayor_es_mejor=False)
         self._colorear_mejor(self._tabla_comparacion, 3, mayor_es_mejor=True)
 
-    # ─────────────────────────────────────────────────────────────────────
-    # EVENTOS — SISTEMA BANCARIO
-    # ─────────────────────────────────────────────────────────────────────
+    # ── EVENTOS — SISTEMA BANCARIO ────────────────────────────────────────────
 
-    # Abre el diálogo y agrega el nuevo cliente a la tabla.
     def _al_agregar_cliente(self):
-        dialogo = DialogoCliente(self)
-        if dialogo.exec() == DialogoCliente.Accepted:
-            agregar_fila_tabla(
-                self._tabla_clientes,
-                [dialogo.nombre, dialogo.tipo, dialogo.llegada],
-            )
+        dlg = DialogoCliente(self)
+        if dlg.exec() == DialogoCliente.Accepted:
+            agregar_fila_tabla(self._tabla_clientes,
+                               [dlg.nombre, dlg.tipo, dlg.llegada])
 
-    # Elimina las filas seleccionadas de la tabla de clientes.
     def _al_eliminar_cliente(self):
         filas = sorted(
             set(item.row() for item in self._tabla_clientes.selectedItems()),
             reverse=True,
         )
-        for fila in filas:
-            self._tabla_clientes.removeRow(fila)
+        for f in filas:
+            self._tabla_clientes.removeRow(f)
 
-    # Ejecuta el MLQ bancario con los clientes registrados.
     def _al_ejecutar_bancario(self):
         clientes = self._leer_clientes_de_tabla()
         if not clientes:
-            QMessageBox.warning(self, "Aviso", "Registre al menos un cliente.")
+            QMessageBox.warning(self, "Sin clientes", "Registre al menos un cliente.")
             return
 
         self._tabla_estadisticas_bco.setRowCount(0)
         self._gantt_bancario.resetear()
 
-        clientes_ordenados = sorted(clientes, key=lambda c: c.tiempo_llegada)
+        clientes_ord = sorted(clientes, key=lambda c: c.tiempo_llegada)
         procesos: List[Proceso] = []
-        for idx, cliente in enumerate(clientes_ordenados, start=1):
+        for idx, c in enumerate(clientes_ord, start=1):
             procesos.append(Proceso(
                 id_proceso=idx,
-                tiempo_llegada=cliente.tiempo_llegada,
-                tiempo_rafaga=cliente.obtener_tiempo_atencion(),
-                prioridad=cliente.prioridad,
-                nombre=cliente.nombre,
+                tiempo_llegada=c.tiempo_llegada,
+                tiempo_rafaga=c.obtener_tiempo_atencion(),
+                prioridad=c.prioridad,
+                nombre=c.nombre,
             ))
 
-        # MLQ con configuración fija: Alta→RR(q=2), Media→FIFO, Baja→SJF
         mlq = PlanificadorMLQ(
             PlanificadorRoundRobin(2),
             PlanificadorFIFO(),
             PlanificadorSJF(),
         )
-        copias = [p.clonar() for p in procesos]
-        segmentos = mlq.ejecutar(copias)
+        segmentos = mlq.ejecutar([p.clonar() for p in procesos])
 
         if not segmentos:
-            QMessageBox.warning(self, "Aviso", "No se generaron segmentos.")
+            QMessageBox.warning(self, "Aviso", "No se generaron segmentos de ejecución.")
             return
 
         nombres_unicos = list(dict.fromkeys(s.nombre_proceso for s in segmentos))
-        mapa_colores = {
+        mapa_col = {
             nombre: COLORES_PROCESOS[i % len(COLORES_PROCESOS)]
             for i, nombre in enumerate(nombres_unicos)
         }
 
-        self._gantt_bancario.inicializar(segmentos, mapa_colores)
+        self._gantt_bancario.inicializar(segmentos, mapa_col)
 
-        # Animación instantánea (sin delay) para el bancario
         for seg in sorted(segmentos, key=lambda s: s.inicio):
             for t in range(seg.inicio, seg.fin + 1):
-                color = mapa_colores.get(seg.nombre_proceso, QColor(128, 128, 128))
-                self._gantt_bancario.avanzar_tick(seg.nombre_proceso, t, color)
+                self._gantt_bancario.avanzar_tick(
+                    seg.nombre_proceso, t, mapa_col.get(seg.nombre_proceso, QColor(128, 128, 128))
+                )
 
-        self._mostrar_estadisticas_bancario(segmentos, clientes_ordenados)
+        self._mostrar_estadisticas_bancario(segmentos, clientes_ord)
+        guardar_clientes_atendidos(clientes_ord, calcular_estadisticas_desde_segmentos(segmentos))
 
-        # Persistir clientes atendidos
-        estadisticas = calcular_estadisticas_desde_segmentos(segmentos)
-        guardar_clientes_atendidos(clientes_ordenados, estadisticas)
+    # ── LECTURA DE TABLAS ─────────────────────────────────────────────────────
 
-    # ─────────────────────────────────────────────────────────────────────
-    # LECTURA DE TABLAS
-    # ─────────────────────────────────────────────────────────────────────
-
-    # Lee y convierte las filas de la tabla de procesos en objetos Proceso.
     def _leer_procesos_de_tabla(self) -> List[Proceso]:
         procesos = []
         for fila in range(self._tabla_procesos.rowCount()):
             try:
-                llegada = int(self._tabla_procesos.item(fila, 0).text())
-                rafaga = int(self._tabla_procesos.item(fila, 1).text())
+                llegada   = int(self._tabla_procesos.item(fila, 0).text())
+                rafaga    = int(self._tabla_procesos.item(fila, 1).text())
                 prioridad = int(self._tabla_procesos.item(fila, 2).text())
                 if rafaga <= 0:
                     continue
@@ -1007,13 +1052,12 @@ class VentanaPrincipal(QMainWindow):
                 continue
         return procesos
 
-    # Lee y convierte las filas de la tabla de clientes en objetos Cliente.
     def _leer_clientes_de_tabla(self) -> List[Cliente]:
         clientes = []
         for fila in range(self._tabla_clientes.rowCount()):
             try:
-                nombre = self._tabla_clientes.item(fila, 0).text().strip()
-                tipo = self._tabla_clientes.item(fila, 1).text().strip().upper()
+                nombre  = self._tabla_clientes.item(fila, 0).text().strip()
+                tipo    = self._tabla_clientes.item(fila, 1).text().strip().upper()
                 llegada = int(self._tabla_clientes.item(fila, 2).text())
                 if not nombre or not tipo:
                     continue
@@ -1022,11 +1066,8 @@ class VentanaPrincipal(QMainWindow):
                 continue
         return clientes
 
-    # ─────────────────────────────────────────────────────────────────────
-    # CONSTRUCCIÓN DE PLANIFICADORES
-    # ─────────────────────────────────────────────────────────────────────
+    # ── PLANIFICADORES ────────────────────────────────────────────────────────
 
-    # Instancia el planificador correcto según el algoritmo seleccionado.
     def _construir_planificador(self) -> PlanificadorBase:
         idx = self._combo_algoritmo.currentIndex()
         if idx == 0:
@@ -1037,13 +1078,12 @@ class VentanaPrincipal(QMainWindow):
             return PlanificadorRoundRobin(self._spin_quantum.value())
         if idx == 3:
             return PlanificadorMLQ(
-                self._crear_planificador_cola(self._combo_cola_alta, self._spin_quantum_alta),
+                self._crear_planificador_cola(self._combo_cola_alta,  self._spin_quantum_alta),
                 self._crear_planificador_cola(self._combo_cola_media, self._spin_quantum_media),
-                self._crear_planificador_cola(self._combo_cola_baja, self._spin_quantum_baja),
+                self._crear_planificador_cola(self._combo_cola_baja,  self._spin_quantum_baja),
             )
         return PlanificadorFIFO()
 
-    # Crea el planificador de una cola MLQ según el combo y spinbox dados.
     def _crear_planificador_cola(self, combo: QComboBox,
                                   spin: QSpinBox) -> PlanificadorBase:
         idx = combo.currentIndex()
@@ -1055,11 +1095,8 @@ class VentanaPrincipal(QMainWindow):
             return PlanificadorRoundRobin(spin.value())
         return PlanificadorFIFO()
 
-    # ─────────────────────────────────────────────────────────────────────
-    # MOSTRAR ESTADÍSTICAS
-    # ─────────────────────────────────────────────────────────────────────
+    # ── MOSTRAR ESTADÍSTICAS ──────────────────────────────────────────────────
 
-    # Rellena la tabla y etiquetas de resumen del simulador.
     def _mostrar_estadisticas_simulador(self):
         if not self._segmentos_actuales:
             return
@@ -1073,41 +1110,76 @@ class VentanaPrincipal(QMainWindow):
                 est["espera"], est["retorno"],
             ])
 
-        self._lbl_prom_espera_sim.setText(f"Prom. Espera: {resumen['promedio_espera']:.2f}")
-        self._lbl_prom_retorno_sim.setText(f"Prom. Retorno: {resumen['promedio_retorno']:.2f}")
-        self._lbl_uso_cpu_sim.setText(f"Uso CPU: {resumen['uso_cpu']:.1f}%")
+        self._actualizar_chip("prom_espera_sim",  f"{resumen['promedio_espera']:.2f}")
+        self._actualizar_chip("prom_retorno_sim", f"{resumen['promedio_retorno']:.2f}")
+        self._actualizar_chip("uso_cpu_sim",      f"{resumen['uso_cpu']:.1f}%")
 
-    # Rellena la tabla y etiquetas de resumen del sistema bancario.
     def _mostrar_estadisticas_bancario(self, segmentos: List[SegmentoEjecucion],
                                         clientes: List[Cliente]):
         estadisticas = calcular_estadisticas_desde_segmentos(segmentos)
         resumen = calcular_resumen_global(segmentos)
-
         mapa_tipos = {c.nombre: c.tipo for c in clientes}
+
         self._tabla_estadisticas_bco.setRowCount(0)
         for est in estadisticas:
-            tipo = mapa_tipos.get(est["nombre"], "—")
             agregar_fila_tabla(self._tabla_estadisticas_bco, [
-                est["nombre"], tipo, est["llegada"], est["fin"],
-                est["espera"], est["retorno"],
+                est["nombre"], mapa_tipos.get(est["nombre"], "—"),
+                est["llegada"], est["fin"], est["espera"], est["retorno"],
             ])
 
-        self._lbl_prom_espera_bco.setText(f"Prom. Espera: {resumen['promedio_espera']:.2f}")
-        self._lbl_prom_retorno_bco.setText(f"Prom. Retorno: {resumen['promedio_retorno']:.2f}")
-        self._lbl_uso_cpu_bco.setText(f"Uso CPU: {resumen['uso_cpu']:.1f}%")
+        self._actualizar_chip("prom_espera_bco",  f"{resumen['promedio_espera']:.2f}")
+        self._actualizar_chip("prom_retorno_bco", f"{resumen['promedio_retorno']:.2f}")
+        self._actualizar_chip("uso_cpu_bco",      f"{resumen['uso_cpu']:.1f}%")
 
-    # ─────────────────────────────────────────────────────────────────────
-    # UTILIDADES DE INTERFAZ
-    # ─────────────────────────────────────────────────────────────────────
+    # ── UTILIDADES DE INTERFAZ ────────────────────────────────────────────────
 
-    # Crea una etiqueta de resumen con el estilo de acento cyan.
-    def _crear_lbl_resumen(self, texto: str) -> QLabel:
-        lbl = QLabel(texto)
-        lbl.setFont(fuente_seccion())
-        lbl.setStyleSheet(f"color: {a_css(COLOR_ACENTO_CYAN)}; background: transparent;")
-        return lbl
+    def _crear_chip_metrica(self, etiqueta: str, valor: str) -> QWidget:
+        chip = QWidget()
+        chip.setFixedHeight(28)
+        chip.setStyleSheet(f"""
+            background-color: {a_css(COLOR_SUPERFICIE_ELEV)};
+            border: 1px solid {a_css(COLOR_BORDE)};
+            border-radius: 6px;
+        """)
+        h = QHBoxLayout(chip)
+        h.setContentsMargins(10, 4, 10, 4)
+        h.setSpacing(5)
 
-    # Resalta la celda con el mejor valor (menor o mayor) en una columna de la tabla.
+        lbl_et = QLabel(etiqueta + ":")
+        lbl_et.setFont(QFont("Segoe UI", 7))
+        lbl_et.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
+
+        lbl_val = QLabel(valor)
+        f_val = QFont("Segoe UI", 8)
+        f_val.setBold(True)
+        lbl_val.setFont(f_val)
+        lbl_val.setStyleSheet(f"color: {a_css(COLOR_ACENTO)}; background: transparent;")
+
+        h.addWidget(lbl_et)
+        h.addWidget(lbl_val)
+
+        # Guardamos el label del valor para poder actualizar el texto
+        chip._lbl_valor = lbl_val
+        chip._etiqueta  = etiqueta
+
+        # Registrar el chip para actualizaciones posteriores
+        if not hasattr(self, "_chips"):
+            self._chips = {}
+        return chip
+
+    def _actualizar_chip(self, clave: str, valor: str):
+        mapa = {
+            "prom_espera_sim":  self._lbl_prom_espera_sim,
+            "prom_retorno_sim": self._lbl_prom_retorno_sim,
+            "uso_cpu_sim":      self._lbl_uso_cpu_sim,
+            "prom_espera_bco":  self._lbl_prom_espera_bco,
+            "prom_retorno_bco": self._lbl_prom_retorno_bco,
+            "uso_cpu_bco":      self._lbl_uso_cpu_bco,
+        }
+        chip = mapa.get(clave)
+        if chip and hasattr(chip, "_lbl_valor"):
+            chip._lbl_valor.setText(valor)
+
     def _colorear_mejor(self, tabla, col_idx: int, mayor_es_mejor: bool):
         n = tabla.rowCount()
         if n == 0:
@@ -1119,19 +1191,20 @@ class VentanaPrincipal(QMainWindow):
             if item is None:
                 continue
             try:
-                valor = float(item.text().replace("%", ""))
+                val = float(item.text().replace("%", ""))
             except ValueError:
                 continue
             if mejor_valor is None:
-                mejor_valor = valor
+                mejor_valor = val
                 mejor_fila = fila
-            elif mayor_es_mejor and valor > mejor_valor:
-                mejor_valor = valor
+            elif mayor_es_mejor and val > mejor_valor:
+                mejor_valor = val
                 mejor_fila = fila
-            elif not mayor_es_mejor and valor < mejor_valor:
-                mejor_valor = valor
+            elif not mayor_es_mejor and val < mejor_valor:
+                mejor_valor = val
                 mejor_fila = fila
 
-        if tabla.item(mejor_fila, col_idx) is not None:
-            tabla.item(mejor_fila, col_idx).setBackground(COLOR_EXITO_OSCURO)
-            tabla.item(mejor_fila, col_idx).setForeground(COLOR_ACENTO_CYAN)
+        item = tabla.item(mejor_fila, col_idx)
+        if item is not None:
+            item.setBackground(_COLOR_MEJOR_BG)
+            item.setForeground(_COLOR_MEJOR_FG)

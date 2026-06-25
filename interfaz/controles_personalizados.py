@@ -3,20 +3,21 @@ from PySide6.QtWidgets import (
     QAbstractItemView, QHeaderView, QSizePolicy, QSpinBox, QComboBox,
 )
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QPainter, QColor, QFont, QPen, QBrush
+from PySide6.QtGui import QPainter, QColor, QFont, QPen, QBrush, QLinearGradient
 
 from interfaz.tema import (
     COLOR_FONDO_PRIMARIO, COLOR_FONDO_SECUNDARIO, COLOR_SUPERFICIE,
-    COLOR_SUPERFICIE_ELEV, COLOR_BORDE, COLOR_ACENTO, COLOR_ACENTO_BRILLANTE,
+    COLOR_SUPERFICIE_ALT, COLOR_SUPERFICIE_ELEV, COLOR_SUPERFICIE_HOVER,
+    COLOR_BORDE, COLOR_BORDE_FUERTE, COLOR_ACENTO, COLOR_ACENTO_BRILLANTE,
     COLOR_TEXTO_PRIMARIO, COLOR_TEXTO_SECUNDARIO, COLOR_TEXTO_MUTED,
     fuente_seccion, fuente_base, fuente_pequena, css_boton, a_css,
     oscurecer, aclarar,
 )
 
 
-# Panel con cabecera pintada a mano, equivalente a ThemedCard de WinForms.
+# Tarjeta con cabecera pintada a mano — tema claro institucional.
 class TarjetaTema(QFrame):
-    ALTURA_CABECERA = 34
+    ALTURA_CABECERA = 36
 
     def __init__(self, titulo: str, parent=None):
         super().__init__(parent)
@@ -26,12 +27,11 @@ class TarjetaTema(QFrame):
             TarjetaTema {{
                 background-color: {a_css(COLOR_SUPERFICIE)};
                 border: 1px solid {a_css(COLOR_BORDE)};
+                border-radius: 8px;
             }}
         """)
-        # Espacio superior reservado para la cabecera pintada
         self.setContentsMargins(1, self.ALTURA_CABECERA, 1, 1)
 
-    # Actualiza el título de la tarjeta y repinta.
     def establecer_titulo(self, titulo: str) -> None:
         self._titulo = titulo
         self.update()
@@ -40,31 +40,34 @@ class TarjetaTema(QFrame):
         super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.TextAntialiasing)
 
         ancho = self.width()
         h = self.ALTURA_CABECERA
 
-        # Fondo de la cabecera
-        painter.fillRect(1, 1, ancho - 2, h - 1, COLOR_SUPERFICIE_ELEV)
+        # Fondo de la cabecera (blanco)
+        painter.fillRect(1, 1, ancho - 2, h - 1, COLOR_SUPERFICIE)
 
-        # Barra de acento superior (3px)
+        # Barra de acento superior (4px, azul institucional)
         painter.fillRect(1, 1, ancho - 2, 3, COLOR_ACENTO)
 
-        # Título
-        painter.setFont(fuente_seccion())
-        painter.setPen(COLOR_ACENTO_BRILLANTE)
-        painter.drawText(12, 0, ancho - 24, h, Qt.AlignVCenter | Qt.AlignLeft, self._titulo)
+        # Título en gris oscuro, negrita pequeña
+        f_titulo = QFont("Segoe UI", 8)
+        f_titulo.setBold(True)
+        painter.setFont(f_titulo)
+        painter.setPen(COLOR_TEXTO_SECUNDARIO)
+        painter.drawText(14, 0, ancho - 28, h, Qt.AlignVCenter | Qt.AlignLeft,
+                         self._titulo.upper())
 
-        # Línea separadora inferior de cabecera
+        # Línea separadora inferior de cabecera (borde suave)
         painter.setPen(QPen(COLOR_BORDE, 1))
         painter.drawLine(1, h, ancho - 2, h)
 
 
-# Ítem de navegación lateral, equivalente a NavItem de WinForms.
+# Ítem de navegación lateral — tema claro.
 class ItemNavegacion(QWidget):
     clic = Signal()
-
-    ALTURA = 52
+    ALTURA = 48
 
     def __init__(self, icono: str, texto: str, parent=None):
         super().__init__(parent)
@@ -88,40 +91,50 @@ class ItemNavegacion(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.TextAntialiasing)
+        painter.setRenderHint(QPainter.Antialiasing)
 
         ancho = self.width()
         alto = self.ALTURA
 
+        # Fondo del ítem
         if self._seleccionado:
-            fondo = COLOR_SUPERFICIE
+            # Fondo azul institucional para el seleccionado
+            painter.fillRect(0, 0, ancho, alto, COLOR_ACENTO)
         elif self._hover:
-            fondo = QColor(21, 23, 36)
+            painter.fillRect(0, 0, ancho, alto, QColor(237, 241, 252))
         else:
-            fondo = COLOR_FONDO_SECUNDARIO
-        painter.fillRect(0, 0, ancho, alto, fondo)
+            painter.fillRect(0, 0, ancho, alto, COLOR_SUPERFICIE)
 
-        # Barra de acento lateral cuando está seleccionado
+        # Barra de acento izquierda solo cuando está seleccionado
         if self._seleccionado:
-            painter.fillRect(0, 10, 3, alto - 20, COLOR_ACENTO)
+            painter.fillRect(0, 8, 3, alto - 16, QColor(255, 255, 255, 180))
 
         # Icono
-        fuente_icono = QFont("Segoe UI", 11)
-        painter.setFont(fuente_icono)
-        color_icono = COLOR_ACENTO_BRILLANTE if self._seleccionado else COLOR_TEXTO_MUTED
-        painter.setPen(color_icono)
-        offset_icono = 16 if self._seleccionado else 14
-        painter.drawText(offset_icono, 0, 30, alto, Qt.AlignVCenter | Qt.AlignLeft, self._icono)
+        f_icono = QFont("Segoe UI", 10)
+        painter.setFont(f_icono)
+        if self._seleccionado:
+            painter.setPen(QColor(255, 255, 255))
+        elif self._hover:
+            painter.setPen(COLOR_ACENTO)
+        else:
+            painter.setPen(COLOR_TEXTO_MUTED)
+        painter.drawText(16, 0, 28, alto, Qt.AlignVCenter | Qt.AlignLeft, self._icono)
 
-        # Etiqueta
-        fuente_etiqueta = fuente_seccion() if self._seleccionado else fuente_base()
-        painter.setFont(fuente_etiqueta)
-        color_etiqueta = COLOR_TEXTO_PRIMARIO if self._seleccionado else COLOR_TEXTO_SECUNDARIO
-        painter.setPen(color_etiqueta)
-        painter.drawText(52, 0, ancho - 58, alto, Qt.AlignVCenter | Qt.AlignLeft, self._texto)
+        # Texto
+        f_etiqueta = fuente_seccion() if self._seleccionado else fuente_base()
+        painter.setFont(f_etiqueta)
+        if self._seleccionado:
+            painter.setPen(QColor(255, 255, 255))
+        elif self._hover:
+            painter.setPen(COLOR_ACENTO)
+        else:
+            painter.setPen(COLOR_TEXTO_PRIMARIO)
+        painter.drawText(50, 0, ancho - 56, alto, Qt.AlignVCenter | Qt.AlignLeft, self._texto)
 
-        # Divisor inferior
-        painter.setPen(QPen(QColor(20, 22, 36), 1))
-        painter.drawLine(0, alto - 1, ancho, alto - 1)
+        # Divisor inferior sutil (solo cuando no seleccionado)
+        if not self._seleccionado:
+            painter.setPen(QPen(COLOR_BORDE, 1))
+            painter.drawLine(12, alto - 1, ancho - 12, alto - 1)
 
     def enterEvent(self, event):
         self._hover = True
@@ -136,7 +149,6 @@ class ItemNavegacion(QWidget):
             self.clic.emit()
 
 
-# Crea y devuelve una QPushButton estilizada con el color dado.
 def crear_boton(texto: str, color_fondo: QColor, ancho: int = 120, alto: int = 30) -> QPushButton:
     btn = QPushButton(texto)
     btn.setFixedSize(ancho, alto)
@@ -145,8 +157,7 @@ def crear_boton(texto: str, color_fondo: QColor, ancho: int = 120, alto: int = 3
     return btn
 
 
-# Crea y devuelve una QTableWidget con el estilo oscuro del tema.
-def crear_tabla(columnas: list[str], alto_fila: int = 26) -> QTableWidget:
+def crear_tabla(columnas: list[str], alto_fila: int = 28) -> QTableWidget:
     tabla = QTableWidget()
     tabla.setColumnCount(len(columnas))
     tabla.setHorizontalHeaderLabels(columnas)
@@ -155,38 +166,43 @@ def crear_tabla(columnas: list[str], alto_fila: int = 26) -> QTableWidget:
     tabla.setEditTriggers(QAbstractItemView.NoEditTriggers)
     tabla.verticalHeader().setVisible(False)
     tabla.horizontalHeader().setHighlightSections(False)
+    tabla.horizontalHeader().setStretchLastSection(True)
     tabla.setShowGrid(True)
     tabla.setGridStyle(Qt.SolidLine)
     tabla.verticalHeader().setDefaultSectionSize(alto_fila)
     tabla.setStyleSheet(f"""
         QTableWidget {{
             background-color: {a_css(COLOR_SUPERFICIE)};
-            alternate-background-color: {a_css(QColor(29, 32, 48))};
+            alternate-background-color: {a_css(COLOR_SUPERFICIE_ALT)};
             color: {a_css(COLOR_TEXTO_PRIMARIO)};
             gridline-color: {a_css(COLOR_BORDE)};
             border: none;
             outline: none;
         }}
         QTableWidget::item {{
-            padding: 4px 6px;
+            padding: 5px 8px;
         }}
         QTableWidget::item:selected {{
-            background-color: {a_css(COLOR_ACENTO)};
-            color: white;
+            background-color: rgb(219,229,251);
+            color: rgb(30,58,138);
         }}
         QHeaderView::section {{
-            background-color: {a_css(COLOR_SUPERFICIE_ELEV)};
-            color: {a_css(COLOR_ACENTO_BRILLANTE)};
+            background-color: {a_css(COLOR_FONDO_PRIMARIO)};
+            color: {a_css(COLOR_TEXTO_SECUNDARIO)};
             border: none;
-            border-bottom: 1px solid {a_css(COLOR_BORDE)};
-            padding: 5px 8px;
+            border-bottom: 2px solid {a_css(COLOR_BORDE)};
+            border-right: 1px solid {a_css(COLOR_BORDE)};
+            padding: 7px 8px;
             font-weight: bold;
+            font-size: 8pt;
+        }}
+        QHeaderView::section:last {{
+            border-right: none;
         }}
     """)
     return tabla
 
 
-# Agrega una fila de datos a una QTableWidget con alineación centrada.
 def agregar_fila_tabla(tabla: QTableWidget, valores: list, centrado: bool = False) -> int:
     fila = tabla.rowCount()
     tabla.insertRow(fila)
@@ -198,7 +214,6 @@ def agregar_fila_tabla(tabla: QTableWidget, valores: list, centrado: bool = Fals
     return fila
 
 
-# Crea un QLabel con estilo de etiqueta de campo (color secundario).
 def crear_etiqueta_campo(texto: str) -> QLabel:
     lbl = QLabel(texto)
     lbl.setFont(fuente_base())
@@ -206,48 +221,64 @@ def crear_etiqueta_campo(texto: str) -> QLabel:
     return lbl
 
 
-# Crea un QSpinBox estilizado con el tema oscuro.
 def crear_spinbox(minimo: int, maximo: int, valor: int = 0) -> QSpinBox:
     spin = QSpinBox()
     spin.setMinimum(minimo)
     spin.setMaximum(maximo)
     spin.setValue(valor)
-    spin.setFixedHeight(26)
+    spin.setFixedHeight(28)
     spin.setStyleSheet(f"""
         QSpinBox {{
-            background-color: {a_css(COLOR_SUPERFICIE_ELEV)};
+            background-color: {a_css(COLOR_SUPERFICIE)};
             color: {a_css(COLOR_TEXTO_PRIMARIO)};
-            border: 1px solid {a_css(COLOR_BORDE)};
-            border-radius: 3px;
+            border: 1.5px solid {a_css(COLOR_BORDE)};
+            border-radius: 5px;
             padding: 2px 6px;
+        }}
+        QSpinBox:focus {{
+            border-color: {a_css(COLOR_ACENTO)};
+            border-width: 2px;
+        }}
+        QSpinBox:hover {{
+            border-color: {a_css(COLOR_BORDE_FUERTE)};
         }}
     """)
     return spin
 
 
-# Crea un QComboBox estilizado con el tema oscuro.
 def crear_combo(opciones: list[str], indice: int = 0) -> QComboBox:
     combo = QComboBox()
     combo.addItems(opciones)
     combo.setCurrentIndex(indice)
-    combo.setFixedHeight(26)
+    combo.setFixedHeight(28)
     combo.setStyleSheet(f"""
         QComboBox {{
-            background-color: {a_css(COLOR_SUPERFICIE_ELEV)};
+            background-color: {a_css(COLOR_SUPERFICIE)};
             color: {a_css(COLOR_TEXTO_PRIMARIO)};
-            border: 1px solid {a_css(COLOR_BORDE)};
-            border-radius: 3px;
+            border: 1.5px solid {a_css(COLOR_BORDE)};
+            border-radius: 5px;
             padding: 2px 8px;
         }}
+        QComboBox:focus {{
+            border-color: {a_css(COLOR_ACENTO)};
+            border-width: 2px;
+        }}
+        QComboBox:hover {{
+            border-color: {a_css(COLOR_BORDE_FUERTE)};
+        }}
         QComboBox QAbstractItemView {{
-            background-color: {a_css(COLOR_SUPERFICIE_ELEV)};
+            background-color: {a_css(COLOR_SUPERFICIE)};
             color: {a_css(COLOR_TEXTO_PRIMARIO)};
             selection-background-color: {a_css(COLOR_ACENTO)};
+            selection-color: white;
             border: 1px solid {a_css(COLOR_BORDE)};
+            border-radius: 4px;
+            outline: none;
+            padding: 2px;
         }}
         QComboBox::drop-down {{
             border: none;
-            width: 20px;
+            width: 22px;
         }}
     """)
     return combo
