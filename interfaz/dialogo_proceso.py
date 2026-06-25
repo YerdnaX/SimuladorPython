@@ -20,7 +20,9 @@ class DialogoProceso(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Agregar Proceso")
-        self.setFixedSize(360, 290)
+        # Evita solapes cuando el sistema usa escalado DPI/fuentes mayores.
+        self.setMinimumSize(380, 360)
+        self.resize(390, 370)
         self.setStyleSheet(f"""
             QDialog {{
                 background-color: {a_css(COLOR_SUPERFICIE)};
@@ -40,14 +42,17 @@ class DialogoProceso(QDialog):
 
         # ── Cabecera ──────────────────────────────────────────────────────────
         cabecera = QWidget()
-        cabecera.setFixedHeight(56)
+        cabecera.setObjectName("cabecera_proceso")
+        cabecera.setFixedHeight(72)
         cabecera.setStyleSheet(f"""
-            background-color: {a_css(COLOR_SUPERFICIE)};
-            border-bottom: 3px solid {a_css(COLOR_ACENTO)};
+            QWidget#cabecera_proceso {{
+                background-color: {a_css(COLOR_SUPERFICIE)};
+                border-bottom: 3px solid {a_css(COLOR_ACENTO)};
+            }}
         """)
         layout_cab = QVBoxLayout(cabecera)
-        layout_cab.setContentsMargins(20, 10, 20, 0)
-        layout_cab.setSpacing(2)
+        layout_cab.setContentsMargins(20, 9, 20, 8)
+        layout_cab.setSpacing(4)
 
         titulo = QLabel("Nuevo Proceso")
         titulo.setFont(fuente_h2())
@@ -55,6 +60,7 @@ class DialogoProceso(QDialog):
 
         subtitulo = QLabel("Complete los parámetros de tiempo y prioridad")
         subtitulo.setFont(fuente_pequena())
+        subtitulo.setWordWrap(True)
         subtitulo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
 
         layout_cab.addWidget(titulo)
@@ -65,8 +71,8 @@ class DialogoProceso(QDialog):
         area = QWidget()
         area.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
         layout_area = QVBoxLayout(area)
-        layout_area.setContentsMargins(20, 18, 20, 12)
-        layout_area.setSpacing(14)
+        layout_area.setContentsMargins(20, 16, 20, 14)
+        layout_area.setSpacing(12)
 
         self._spin_llegada = crear_spinbox(0, 9999, 0)
         self._spin_rafaga = crear_spinbox(1, 9999, 4)
@@ -91,7 +97,7 @@ class DialogoProceso(QDialog):
             lbl = QLabel(etiqueta)
             lbl.setFont(fuente_base())
             lbl.setStyleSheet(f"color: {a_css(COLOR_TEXTO_PRIMARIO)}; background: transparent;")
-            lbl.setMinimumWidth(200)
+            lbl.setMinimumWidth(190)
 
             spin.setFixedWidth(110)
             fila.addWidget(lbl)
@@ -124,7 +130,7 @@ class DialogoProceso(QDialog):
         pie.setFixedHeight(58)
         pie.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
         layout_pie = QHBoxLayout(pie)
-        layout_pie.setContentsMargins(20, 12, 20, 12)
+        layout_pie.setContentsMargins(20, 10, 20, 10)
         layout_pie.setSpacing(10)
 
         layout_pie.addStretch()

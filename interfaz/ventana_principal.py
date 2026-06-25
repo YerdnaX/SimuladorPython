@@ -269,7 +269,7 @@ class VentanaPrincipal(QMainWindow):
         layout_proc.setContentsMargins(0, 0, 0, 0)
         layout_proc.setSpacing(0)
 
-        self._tabla_procesos = crear_tabla(["Llegada", "Ráfaga", "Prioridad"])
+        self._tabla_procesos = crear_tabla(["Proceso", "Llegada", "Ráfaga", "Prioridad"])
         layout_proc.addWidget(self._tabla_procesos)
 
         sep_proc = QFrame()
@@ -782,8 +782,11 @@ class VentanaPrincipal(QMainWindow):
     # ── DATOS DE DEMOSTRACIÓN ─────────────────────────────────────────────────
 
     def _cargar_datos_demostracion(self):
-        for llegada, rafaga, prioridad in [(0, 5, 1), (2, 3, 2), (4, 8, 1), (6, 2, 3), (8, 4, 2)]:
-            agregar_fila_tabla(self._tabla_procesos, [llegada, rafaga, prioridad])
+        for idx, (llegada, rafaga, prioridad) in enumerate(
+            [(0, 5, 1), (2, 3, 2), (4, 8, 1), (6, 2, 3), (8, 4, 2)],
+            start=1,
+        ):
+            agregar_fila_tabla(self._tabla_procesos, [f"P{idx}", llegada, rafaga, prioridad])
 
     # ── EVENTOS — SIMULADOR ───────────────────────────────────────────────────
 
@@ -797,8 +800,9 @@ class VentanaPrincipal(QMainWindow):
     def _al_agregar_proceso(self):
         dlg = DialogoProceso(self)
         if dlg.exec() == DialogoProceso.Accepted:
+            siguiente = self._tabla_procesos.rowCount() + 1
             agregar_fila_tabla(self._tabla_procesos,
-                               [dlg.llegada, dlg.rafaga, dlg.prioridad])
+                               [f"P{siguiente}", dlg.llegada, dlg.rafaga, dlg.prioridad])
 
     def _al_eliminar_proceso(self):
         filas = sorted(
@@ -822,9 +826,9 @@ class VentanaPrincipal(QMainWindow):
             QMessageBox.warning(self, "Aviso", "No se encontraron procesos válidos en el archivo.")
             return
         self._tabla_procesos.setRowCount(0)
-        for p in procesos:
+        for idx, p in enumerate(procesos, start=1):
             agregar_fila_tabla(self._tabla_procesos,
-                               [p.tiempo_llegada, p.tiempo_rafaga, p.prioridad])
+                               [p.nombre or f"P{idx}", p.tiempo_llegada, p.tiempo_rafaga, p.prioridad])
 
     def _al_ejecutar(self):
         if self._simulacion_en_curso:
@@ -1012,16 +1016,19 @@ class VentanaPrincipal(QMainWindow):
         procesos = []
         for fila in range(self._tabla_procesos.rowCount()):
             try:
-                llegada   = int(self._tabla_procesos.item(fila, 0).text())
-                rafaga    = int(self._tabla_procesos.item(fila, 1).text())
-                prioridad = int(self._tabla_procesos.item(fila, 2).text())
+                nombre    = self._tabla_procesos.item(fila, 0).text().strip()
+                llegada   = int(self._tabla_procesos.item(fila, 1).text())
+                rafaga    = int(self._tabla_procesos.item(fila, 2).text())
+                prioridad = int(self._tabla_procesos.item(fila, 3).text())
                 if rafaga <= 0:
                     continue
+                id_proceso = fila + 1
                 procesos.append(Proceso(
-                    id_proceso=fila + 1,
+                    id_proceso=id_proceso,
                     tiempo_llegada=llegada,
                     tiempo_rafaga=rafaga,
                     prioridad=prioridad,
+                    nombre=nombre or f"P{id_proceso}",
                 ))
             except (AttributeError, ValueError):
                 continue
