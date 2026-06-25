@@ -17,6 +17,31 @@ from interfaz.tema import (
 from modelos.segmento_ejecucion import SegmentoEjecucion
 
 
+# ── Conversión de unidades de tiempo a formato horario ───────────────────────
+_HORA_BASE_MIN = 7 * 60   # 7:00 AM en minutos
+_MIN_POR_UNIDAD = 10      # cada unidad = 10 minutos
+
+
+def tick_a_hora(t: int) -> str:
+    """Unidad de tiempo → 'HH:MM'  (base 07:00, cada unidad = 10 min)."""
+    total = _HORA_BASE_MIN + t * _MIN_POR_UNIDAD
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def tick_a_duracion(t) -> str:
+    """Unidades de tiempo → duración legible ('Xh Ymin' o 'Y min').
+    Acepta int o float; redondea al minuto más cercano."""
+    minutos = round(t * _MIN_POR_UNIDAD)
+    if minutos == 0:
+        return "0 min"
+    h, m = divmod(minutos, 60)
+    if h and m:
+        return f"{h}h {m:02d}min"
+    if h:
+        return f"{h}h"
+    return f"{m} min"
+
+
 # ── Constantes de diseño ──────────────────────────────────────────────────────
 _MARGEN_IZQ    = 136   # Ancho del panel de nombres
 _ALTO_FILA     = 46    # Alto de cada fila de proceso
@@ -189,6 +214,10 @@ class VistaGantt(QWidget):
 
     # ── SECCIONES DE DIBUJO ───────────────────────────────────────────────────
 
+    @staticmethod
+    def _tick_a_hora(t: int) -> str:
+        return tick_a_hora(t)
+
     def _dibujar_regla(self, painter: QPainter, scroll_x: int) -> None:
         alto_total = _MARGEN_TOP + len(self._orden_procesos) * _ALTO_FILA
 
@@ -209,30 +238,64 @@ class VistaGantt(QWidget):
             Qt.AlignCenter, "PROCESO"
         )
 
-        f_num = QFont("Consolas", 7)
-        painter.setFont(f_num)
+        # Fuentes para marcas de hora y de 10 min
+        f_hora  = QFont("Consolas", 7)
+        f_hora.setBold(True)
+        f_min   = QFont("Consolas", 6)
 
         for t in range(self._tiempo_max + 2):
             x = _MARGEN_IZQ + t * _PX_POR_UNIDAD - scroll_x
             if x < _MARGEN_IZQ - 5 or x > self.width() + 5:
                 continue
 
-            major = (t % 5 == 0)
+            es_hora       = (t % 6 == 0)   # cada 60 min → marca mayor
+            es_media_hora = (t % 3 == 0)   # cada 30 min → marca media
 
             # Línea de cuadrícula sobre filas
-            painter.setPen(QPen(_CL_GRID_MAJ if major else _CL_GRID_MIN, 1))
+            if es_hora:
+                grid_color = _CL_GRID_MAJ
+            elif es_media_hora:
+                grid_color = QColor(220, 225, 242)
+            else:
+                grid_color = _CL_GRID_MIN
+            painter.setPen(QPen(grid_color, 1))
             painter.drawLine(x, _MARGEN_TOP, x, alto_total)
 
-            # Marca en la regla
-            tick_h = 10 if major else 5
-            painter.setPen(QPen(_CL_TICK_MAJ if major else _CL_TICK_MIN, 1))
+            # Marca vertical en la regla
+            if es_hora:
+                tick_h    = 12
+                tick_pen  = _CL_TICK_MAJ
+            elif es_media_hora:
+                tick_h    = 8
+                tick_pen  = _CL_TICK_MIN
+            else:
+                tick_h    = 4
+                tick_pen  = QColor(205, 210, 230)
+            painter.setPen(QPen(tick_pen, 1))
             painter.drawLine(x, _MARGEN_TOP - tick_h, x, _MARGEN_TOP)
 
-            # Número de tiempo
-            painter.setPen(_CL_NUM_MAJ if major else _CL_NUM_MIN)
-            offset_x = -7 if t >= 10 else -4
-            y_num = 4 if major else 8
-            painter.drawText(x + offset_x, y_num, 20, 18, Qt.AlignLeft, str(t))
+            # Etiqueta de hora (HH:MM)
+            etiqueta = self._tick_a_hora(t)
+            if es_hora:
+                painter.setFont(f_hora)
+                painter.setPen(_CL_NUM_MAJ)
+                ancho_txt = 34
+                y_txt = 3
+            elif es_media_hora:
+                painter.setFont(f_min)
+                painter.setPen(_CL_NUM_MIN)
+                ancho_txt = 30
+                y_txt = 6
+            else:
+                painter.setFont(f_min)
+                painter.setPen(QColor(200, 206, 228))
+                ancho_txt = 28
+                y_txt = 9
+
+            painter.drawText(
+                QRect(x - ancho_txt // 2, y_txt, ancho_txt, 16),
+                Qt.AlignCenter, etiqueta
+            )
 
         # Línea inferior de la regla
         painter.setPen(QPen(_CL_SEP, 1))

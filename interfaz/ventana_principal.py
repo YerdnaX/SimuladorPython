@@ -27,7 +27,7 @@ from interfaz.controles_personalizados import (
     TarjetaTema, ItemNavegacion, crear_boton, crear_tabla,
     agregar_fila_tabla, crear_etiqueta_campo, crear_spinbox, crear_combo,
 )
-from interfaz.vista_gantt import VistaGantt
+from interfaz.vista_gantt import VistaGantt, tick_a_hora, tick_a_duracion
 from interfaz.dialogo_proceso import DialogoProceso
 from interfaz.dialogo_cliente import DialogoCliente
 from interfaz.panel_emergencias import PanelEmergencias
@@ -493,7 +493,7 @@ class VentanaPrincipal(QMainWindow):
         layout_stats.setSpacing(0)
 
         self._tabla_estadisticas_sim = crear_tabla(
-            ["Proceso", "Llegada", "Fin", "T. Espera", "T. Retorno"]
+            ["Proceso", "H. Llegada", "H. Fin", "T. Espera", "T. Retorno"]
         )
         layout_stats.addWidget(self._tabla_estadisticas_sim)
 
@@ -891,7 +891,7 @@ class VentanaPrincipal(QMainWindow):
         self._btn_pausar.setEnabled(False)
         self._btn_pausar.setText("⏸  Pausar")
         self._btn_pausar.setStyleSheet(css_boton(_BTN_PAUSA))
-        self._lbl_reloj.setText("t = 0")
+        self._lbl_reloj.setText("07:00")
         self._barra_progreso.setValue(0)
         self._gantt_simulador.resetear()
         self._tabla_estadisticas_sim.setRowCount(0)
@@ -913,7 +913,7 @@ class VentanaPrincipal(QMainWindow):
         color = self._mapa_colores.get(seg.nombre_proceso, QColor(128, 128, 128))
 
         self._gantt_simulador.avanzar_tick(seg.nombre_proceso, t_fin, color)
-        self._lbl_reloj.setText(f"t = {t_fin}")
+        self._lbl_reloj.setText(tick_a_hora(t_fin))
         self._barra_progreso.setValue(min(t_fin, self._barra_progreso.maximum()))
 
         self._tick_en_seg += 1
@@ -940,8 +940,8 @@ class VentanaPrincipal(QMainWindow):
         for r in resultados:
             agregar_fila_tabla(self._tabla_comparacion, [
                 r["algoritmo"],
-                f"{r['promedio_espera']:.2f}",
-                f"{r['promedio_retorno']:.2f}",
+                tick_a_duracion(r["promedio_espera"]),
+                tick_a_duracion(r["promedio_retorno"]),
                 f"{r['uso_cpu']:.1f}%",
             ], centrado=True)
 
@@ -1088,13 +1088,18 @@ class VentanaPrincipal(QMainWindow):
         self._tabla_estadisticas_sim.setRowCount(0)
         for est in estadisticas:
             agregar_fila_tabla(self._tabla_estadisticas_sim, [
-                est["nombre"], est["llegada"], est["fin"],
-                est["espera"], est["retorno"],
+                est["nombre"],
+                tick_a_hora(est["llegada"]),
+                tick_a_hora(est["fin"]),
+                tick_a_duracion(est["espera"]),
+                tick_a_duracion(est["retorno"]),
             ])
 
-        self._actualizar_chip("prom_espera_sim",  f"{resumen['promedio_espera']:.2f}")
-        self._actualizar_chip("prom_retorno_sim", f"{resumen['promedio_retorno']:.2f}")
-        self._actualizar_chip("uso_cpu_sim",      f"{resumen['uso_cpu']:.1f}%")
+        self._actualizar_chip("prom_espera_sim",
+                              tick_a_duracion(resumen["promedio_espera"]))
+        self._actualizar_chip("prom_retorno_sim",
+                              tick_a_duracion(resumen["promedio_retorno"]))
+        self._actualizar_chip("uso_cpu_sim", f"{resumen['uso_cpu']:.1f}%")
 
     def _mostrar_estadisticas_bancario(self, segmentos: List[SegmentoEjecucion],
                                         clientes: List[Cliente]):

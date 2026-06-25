@@ -34,7 +34,7 @@ from interfaz.controles_personalizados import (
     TarjetaTema, ItemNavegacion, crear_boton, crear_tabla,
     agregar_fila_tabla, crear_etiqueta_campo, crear_spinbox, crear_combo,
 )
-from interfaz.vista_gantt import VistaGantt
+from interfaz.vista_gantt import VistaGantt, tick_a_hora, tick_a_duracion
 from interfaz.dialogo_paciente import DialogoPaciente
 
 from modelos.paciente import (
@@ -341,11 +341,11 @@ class PanelEmergencias(QWidget):
         b_lay.setContentsMargins(12, 8, 12, 8)
         b_lay.setSpacing(12)
 
-        self._lbl_reloj = QLabel("t = 0")
+        self._lbl_reloj = QLabel("07:00")
         f_reloj = QFont("Consolas", 11)
         f_reloj.setBold(True)
         self._lbl_reloj.setFont(f_reloj)
-        self._lbl_reloj.setFixedWidth(80)
+        self._lbl_reloj.setFixedWidth(58)
         self._lbl_reloj.setStyleSheet(
             f"color: {a_css(COLOR_ACENTO)}; background: transparent;"
         )
@@ -500,8 +500,8 @@ class PanelEmergencias(QWidget):
         lay_st.setSpacing(0)
 
         self._tabla_stats = crear_tabla(
-            ["Tiquete", "Nombre", "Tipo", "Cola", "Llegada",
-             "Fin", "T. Espera", "T. Retorno", "Algoritmo"]
+            ["Tiquete", "Nombre", "Tipo", "Cola", "H. Llegada",
+             "H. Fin", "T. Espera", "T. Retorno", "Algoritmo"]
         )
         lay_st.addWidget(self._tabla_stats)
         lay.addWidget(tarjeta_st, 3)
@@ -744,7 +744,7 @@ class PanelEmergencias(QWidget):
             self._btn_pausar.setStyleSheet(css_boton(COLOR_ACENTO))
             self._btn_ejecutar.setEnabled(True)
             self._modo_paso = True
-            self._log(f"[t={self._lbl_reloj.text().replace('t = ','')}] ⏸ Simulación pausada.")
+            self._log(f"[{self._lbl_reloj.text()}] ⏸ Simulación pausada.")
         else:
             self._simulacion_en_curso = True
             self._modo_paso = False
@@ -770,7 +770,7 @@ class PanelEmergencias(QWidget):
         self._btn_paso.setEnabled(False)
         self._btn_pausar.setText("⏸  Pausar")
         self._btn_pausar.setStyleSheet(css_boton(_BTN_PAUSA))
-        self._lbl_reloj.setText("t = 0")
+        self._lbl_reloj.setText("07:00")
         self._barra_prog.setValue(0)
         self._lbl_proceso_actual.setText("Sin simulación activa")
         self._gantt.resetear()
@@ -819,14 +819,14 @@ class PanelEmergencias(QWidget):
             )
 
         self._gantt.avanzar_tick(seg.nombre_proceso, t_fin, color)
-        self._lbl_reloj.setText(f"t = {t_fin}")
+        self._lbl_reloj.setText(tick_a_hora(t_fin))
         self._barra_prog.setValue(min(t_fin, self._barra_prog.maximum()))
 
         # Nombre corto del paciente en la barra de estado
         pac = self._buscar_paciente_por_id(seg.nombre_proceso)
         nombre_disp = pac.nombre_corto if pac else seg.nombre_proceso
         self._lbl_proceso_actual.setText(
-            f"Atendiendo: {seg.nombre_proceso} — {nombre_disp}  (t = {t_fin})"
+            f"Atendiendo: {seg.nombre_proceso} — {nombre_disp}  ({tick_a_hora(t_fin)})"
         )
 
         self._tick_en_seg += 1
@@ -869,8 +869,10 @@ class PanelEmergencias(QWidget):
             alg     = self._algoritmos_por_tipo.get(tipo, "?")
             agregar_fila_tabla(self._tabla_stats, [
                 tiquete, nombre, tipo, cola,
-                est["llegada"], est["fin"],
-                est["espera"], est["retorno"],
+                tick_a_hora(est["llegada"]),
+                tick_a_hora(est["fin"]),
+                tick_a_duracion(est["espera"]),
+                tick_a_duracion(est["retorno"]),
                 alg,
             ])
 
@@ -891,13 +893,14 @@ class PanelEmergencias(QWidget):
             prom_r = sum(e["retorno"]  for e in lista_est) / len(lista_est)
             agregar_fila_tabla(self._tabla_resumen_tipo, [
                 tipo, cola, len(lista_est),
-                f"{prom_e:.2f}", f"{prom_r:.2f}",
+                tick_a_duracion(prom_e),
+                tick_a_duracion(prom_r),
             ])
 
         # Actualizar barra global
         self._actualizar_barra_global(
-            f"{resumen['promedio_espera']:.2f}",
-            f"{resumen['promedio_retorno']:.2f}",
+            tick_a_duracion(resumen["promedio_espera"]),
+            tick_a_duracion(resumen["promedio_retorno"]),
             f"{resumen['uso_cpu']:.1f}%",
             str(self._cambios_contexto),
         )
