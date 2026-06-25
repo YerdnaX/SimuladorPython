@@ -140,22 +140,6 @@ class VentanaPrincipal(QMainWindow):
         layout.addWidget(bloque_texto)
         layout.addStretch()
 
-        # Badges de algoritmos disponibles
-        for alg in ["FIFO", "SJF", "Round Robin", "MLQ"]:
-            badge = QLabel(alg)
-            badge.setFont(QFont("Segoe UI", 7, QFont.Bold))
-            badge.setAlignment(Qt.AlignCenter)
-            badge.setFixedHeight(22)
-            badge.setContentsMargins(8, 0, 8, 0)
-            badge.setStyleSheet(f"""
-                color: {a_css(COLOR_ACENTO)};
-                background-color: rgb(237, 241, 252);
-                border: 1px solid {a_css(QColor(196, 210, 248))};
-                border-radius: 11px;
-                padding: 0 6px;
-            """)
-            layout.addWidget(badge)
-
         return cabecera
 
     def _crear_barra_navegacion(self) -> QWidget:
@@ -287,7 +271,7 @@ class VentanaPrincipal(QMainWindow):
 
         self._btn_agregar_proceso = crear_boton("+ Agregar", _BTN_ACCION, 88, 28)
         self._btn_eliminar_proceso = crear_boton("Eliminar", _BTN_PELIGRO, 82, 28)
-        self._btn_cargar_archivo = crear_boton("Cargar TXT", _BTN_NEUTRO, 78, 28)
+        self._btn_cargar_archivo = crear_boton("Cargar TXT", _BTN_NEUTRO, 104, 28)
 
         self._btn_agregar_proceso.clicked.connect(self._al_agregar_proceso)
         self._btn_eliminar_proceso.clicked.connect(self._al_eliminar_proceso)
@@ -545,15 +529,6 @@ class VentanaPrincipal(QMainWindow):
         layout_banda = QVBoxLayout(banda)
         layout_banda.setContentsMargins(14, 10, 14, 10)
         layout_banda.setSpacing(5)
-
-        desc = QLabel(
-            "Ejecuta FIFO, SJF y Round Robin sobre los mismos procesos del Simulador "
-            "y compara sus métricas. Los mejores valores se resaltan en verde."
-        )
-        desc.setFont(fuente_base())
-        desc.setWordWrap(True)
-        desc.setStyleSheet(f"color: {a_css(COLOR_TEXTO_SECUNDARIO)}; background: transparent;")
-        layout_banda.addWidget(desc)
 
         self._btn_comparar = crear_boton(
             "Comparar con procesos actuales", _BTN_NEUTRO, 260, 34
