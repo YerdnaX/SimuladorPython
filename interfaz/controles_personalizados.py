@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import (
     QWidget, QLabel, QFrame, QPushButton, QTableWidget, QTableWidgetItem,
-    QAbstractItemView, QHeaderView, QSizePolicy, QSpinBox, QComboBox,
+    QAbstractItemView, QAbstractSpinBox, QHeaderView, QSizePolicy, QSpinBox, QComboBox,
 )
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QPainter, QColor, QFont, QPen, QBrush, QLinearGradient
@@ -226,6 +226,7 @@ def crear_spinbox(minimo: int, maximo: int, valor: int = 0) -> QSpinBox:
     spin.setMinimum(minimo)
     spin.setMaximum(maximo)
     spin.setValue(valor)
+    spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
     spin.setFixedHeight(28)
     spin.setStyleSheet(f"""
         QSpinBox {{

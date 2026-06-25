@@ -1,0 +1,42 @@
+# ============================================================
+#  ARCHIVO DE CARGA — CENTRO DE EMERGENCIAS MÉDICAS
+#  Formato: ID, Nombre, Tipo, Motivo, TiempoLlegada, TiempoRafaga
+#
+#  Tipos válidos:  ROJO | AMARILLO | EMBARAZADA | VERDE | CITA | SEGUIMIENTO
+#  Cola asignada:
+#    ROJO / AMARILLO   → CRÍTICA  (prioridad 1 y 2)
+#    EMBARAZADA / VERDE → URGENTE  (prioridad 3 y 4)
+#    CITA / SEGUIMIENTO → NORMAL   (prioridad 5 y 6)
+# ============================================================
+
+# --- Cola CRÍTICA: pacientes ROJO ---
+P001, Juan Ramírez Solís,       ROJO,        Accidente de tránsito grave,         0,  9
+P002, Karla Vega Mora,          ROJO,        Paro cardiorrespiratorio,            1,  10
+P003, Andrés Núñez Pérez,       ROJO,        Quemaduras de tercer grado,          3,  8
+
+# --- Cola CRÍTICA: pacientes AMARILLO ---
+P004, Laura Jiménez Castro,     AMARILLO,    Desmayo con pérdida de conciencia,   2,  7
+P005, Roberto Solano Arias,     AMARILLO,    Fractura expuesta de fémur,          4,  6
+P006, Diana Quesada López,      AMARILLO,    Dolor de pecho intenso,              5,  7
+
+# --- Cola URGENTE: pacientes EMBARAZADA ---
+P007, Sofía Campos Rojas,       EMBARAZADA,  Trabajo de parto prematuro,          1,  6
+P008, Valeria Mora Picado,      EMBARAZADA,  Eclampsia severa,                    6,  8
+P009, Isabel Vargas Brenes,     EMBARAZADA,  Sangrado en tercer trimestre,        8,  5
+
+# --- Cola URGENTE: pacientes VERDE ---
+P010, Carlos Molina Soto,       VERDE,       Herida cortante en brazo,            3,  4
+P011, Ana Bermúdez Orozco,      VERDE,       Contusión en cabeza leve,            7,  3
+P012, Marco Herrera Fallas,     VERDE,       Quemadura de primer grado,           9,  4
+P013, Patricia Chaves Mora,     VERDE,       Esguince de tobillo,                 10, 3
+
+# --- Cola NORMAL: pacientes CITA ---
+P014, Luis Arce Méndez,         CITA,        Cita de control presión arterial,    5,  3
+P015, Gloria Benavides Torres,  CITA,        Revisión de resultados de laboratorio,11, 2
+P016, Fernando Ulate Quirós,    CITA,        Cita de control diabetes,            12, 3
+P017, Melissa Rodríguez Salas,  CITA,        Consulta general programada,         14, 2
+
+# --- Cola NORMAL: pacientes SEGUIMIENTO ---
+P018, Jorge Badilla Mora,       SEGUIMIENTO, Seguimiento postoperatorio apendicectomía, 6,  2
+P019, Carmen Elizondo Vega,     SEGUIMIENTO, Control de herida quirúrgica,        13, 2
+P020, Héctor Monge Alvarado,    SEGUIMIENTO, Revisión de medicación crónica,      15, 2

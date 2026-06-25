@@ -1,0 +1,28 @@
+# ============================================================
+#  ARCHIVO DE CARGA — SIMULADOR DE PLANIFICACIÓN DE PROCESOS
+#  Formato: ID, TiempoLlegada, TiempoRafaga, Prioridad
+#  Prioridad: 1 = más alta  |  5 = más baja
+# ============================================================
+
+# --- Procesos de alta prioridad (llegan temprano) ---
+1,  0,  5,  1
+2,  0,  3,  2
+3,  1,  8,  1
+
+# --- Procesos de prioridad media ---
+4,  2,  4,  3
+5,  3,  6,  3
+6,  4,  2,  3
+
+# --- Procesos de baja prioridad ---
+7,  5,  7,  4
+8,  6,  3,  5
+9,  7,  5,  4
+10, 8,  4,  5
+
+# --- Procesos que llegan tarde ---
+11, 10, 6,  2
+12, 12, 3,  1
+13, 14, 9,  3
+14, 15, 2,  5
+15, 18, 4,  2

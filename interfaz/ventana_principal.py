@@ -30,6 +30,7 @@ from interfaz.controles_personalizados import (
 from interfaz.vista_gantt import VistaGantt
 from interfaz.dialogo_proceso import DialogoProceso
 from interfaz.dialogo_cliente import DialogoCliente
+from interfaz.panel_emergencias import PanelEmergencias
 
 from modelos.proceso import Proceso
 from modelos.cliente import Cliente
@@ -89,6 +90,7 @@ class VentanaPrincipal(QMainWindow):
         layout_central.setSpacing(0)
 
         layout_central.addWidget(self._crear_cabecera())
+        layout_central.addWidget(self._crear_barra_navegacion())
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
@@ -96,34 +98,18 @@ class VentanaPrincipal(QMainWindow):
         sep.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
         layout_central.addWidget(sep)
 
-        cuerpo = QWidget()
-        cuerpo.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
-        layout_cuerpo = QHBoxLayout(cuerpo)
-        layout_cuerpo.setContentsMargins(0, 0, 0, 0)
-        layout_cuerpo.setSpacing(0)
-
-        layout_cuerpo.addWidget(self._crear_sidebar())
-
-        sep_v = QFrame()
-        sep_v.setFrameShape(QFrame.VLine)
-        sep_v.setFixedWidth(1)
-        sep_v.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)};")
-        layout_cuerpo.addWidget(sep_v)
-
         self._stack = QStackedWidget()
         self._stack.setStyleSheet(f"background-color: {a_css(COLOR_FONDO_PRIMARIO)};")
-        layout_cuerpo.addWidget(self._stack)
+        layout_central.addWidget(self._stack)
 
-        self._panel_simulador  = self._construir_panel_simulador()
+        self._panel_simulador   = self._construir_panel_simulador()
         self._panel_comparacion = self._construir_panel_comparacion()
-        self._panel_bancario   = self._construir_panel_bancario()
+        self._panel_emergencias = PanelEmergencias()
 
         self._stack.addWidget(self._panel_simulador)
         self._stack.addWidget(self._panel_comparacion)
-        self._stack.addWidget(self._panel_bancario)
+        self._stack.addWidget(self._panel_emergencias)
         self._stack.setCurrentIndex(0)
-
-        layout_central.addWidget(cuerpo)
 
     def _crear_cabecera(self) -> QWidget:
         cabecera = QWidget()
@@ -179,55 +165,60 @@ class VentanaPrincipal(QMainWindow):
 
         return cabecera
 
-    def _crear_sidebar(self) -> QWidget:
-        sidebar = QWidget()
-        sidebar.setFixedWidth(200)
-        sidebar.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
+    def _crear_barra_navegacion(self) -> QWidget:
+        barra = QWidget()
+        barra.setFixedHeight(48)
+        barra.setStyleSheet(f"background-color: {a_css(COLOR_SUPERFICIE)};")
 
-        layout = QVBoxLayout(sidebar)
-        layout.setContentsMargins(0, 8, 0, 8)
-        layout.setSpacing(2)
+        layout = QHBoxLayout(barra)
+        layout.setContentsMargins(8, 0, 20, 0)
+        layout.setSpacing(0)
 
+        # Etiqueta "MÓDULOS"
         lbl = QLabel("MÓDULOS")
         f_lbl = QFont("Segoe UI", 7)
         f_lbl.setBold(True)
         f_lbl.setLetterSpacing(QFont.AbsoluteSpacing, 0.8)
         lbl.setFont(f_lbl)
         lbl.setStyleSheet(
-            f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; "
-            f"padding: 4px 18px 8px 18px;"
+            f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; padding: 0 14px 0 10px;"
         )
         layout.addWidget(lbl)
 
-        self._nav_simulador  = ItemNavegacion("⚙", "Simulador")
-        self._nav_comparacion = ItemNavegacion("📊", "Comparación")
-        self._nav_bancario   = ItemNavegacion("🏦", "Sist. Bancario")
+        # Separador vertical decorativo
+        sep_v = QFrame()
+        sep_v.setFrameShape(QFrame.VLine)
+        sep_v.setFixedWidth(1)
+        sep_v.setFixedHeight(26)
+        sep_v.setStyleSheet(f"background: {a_css(COLOR_BORDE)};")
+        layout.addWidget(sep_v)
+
+        self._nav_simulador    = ItemNavegacion("⚙", "Simulador")
+        self._nav_comparacion  = ItemNavegacion("📊", "Comparación")
+        self._nav_emergencias  = ItemNavegacion("🏥", "Emergencias")
+
+        for nav in [self._nav_simulador, self._nav_comparacion, self._nav_emergencias]:
+            nav.setFixedWidth(158)
 
         self._nav_simulador.seleccionado = True
         self._nav_simulador.clic.connect(lambda: self._cambiar_panel(0))
         self._nav_comparacion.clic.connect(lambda: self._cambiar_panel(1))
-        self._nav_bancario.clic.connect(lambda: self._cambiar_panel(2))
+        self._nav_emergencias.clic.connect(lambda: self._cambiar_panel(2))
 
-        self._items_nav = [self._nav_simulador, self._nav_comparacion, self._nav_bancario]
+        self._items_nav = [self._nav_simulador, self._nav_comparacion, self._nav_emergencias]
 
         for item in self._items_nav:
             layout.addWidget(item)
 
-        sep = QFrame()
-        sep.setFrameShape(QFrame.HLine)
-        sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background-color: {a_css(COLOR_BORDE)}; margin: 8px 12px;")
-        layout.addWidget(sep)
         layout.addStretch()
 
-        # Pie del sidebar
         lbl_ver = QLabel("v2.0  —  CUC 2026")
         lbl_ver.setFont(QFont("Segoe UI", 7))
-        lbl_ver.setAlignment(Qt.AlignCenter)
-        lbl_ver.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent; padding: 6px;")
+        lbl_ver.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        lbl_ver.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
         layout.addWidget(lbl_ver)
 
-        return sidebar
+        return barra
 
     def _cambiar_panel(self, indice: int):
         self._stack.setCurrentIndex(indice)
@@ -801,15 +792,6 @@ class VentanaPrincipal(QMainWindow):
         for llegada, rafaga, prioridad in [(0, 5, 1), (2, 3, 2), (4, 8, 1), (6, 2, 3), (8, 4, 2)]:
             agregar_fila_tabla(self._tabla_procesos, [llegada, rafaga, prioridad])
 
-        for nombre, tipo, llegada in [
-            ("Ana",    "VIP",         0),
-            ("Carlos", "ADULTOMAYOR", 1),
-            ("María",  "EMBARAZADA",  2),
-            ("Luis",   "REGULAR",     3),
-            ("Pedro",  "FORANEO",     4),
-        ]:
-            agregar_fila_tabla(self._tabla_clientes, [nombre, tipo, llegada])
-
     # ── EVENTOS — SIMULADOR ───────────────────────────────────────────────────
 
     def _al_cambiar_algoritmo(self, indice: int):
@@ -1172,9 +1154,6 @@ class VentanaPrincipal(QMainWindow):
             "prom_espera_sim":  self._lbl_prom_espera_sim,
             "prom_retorno_sim": self._lbl_prom_retorno_sim,
             "uso_cpu_sim":      self._lbl_uso_cpu_sim,
-            "prom_espera_bco":  self._lbl_prom_espera_bco,
-            "prom_retorno_bco": self._lbl_prom_retorno_bco,
-            "uso_cpu_bco":      self._lbl_uso_cpu_bco,
         }
         chip = mapa.get(clave)
         if chip and hasattr(chip, "_lbl_valor"):
