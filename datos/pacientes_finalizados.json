@@ -1,0 +1,322 @@
+[
+  {
+    "nombre": "Ana",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 0,
+    "tiempo_finalizacion": 2,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:26:46"
+  },
+  {
+    "nombre": "Carlos",
+    "tipo": "ADULTOMAYOR",
+    "prioridad": 2,
+    "tiempo_llegada": 1,
+    "tiempo_finalizacion": 5,
+    "tiempo_espera": 1,
+    "tiempo_retorno": 4,
+    "fecha_atencion": "2026-06-25T08:26:46"
+  },
+  {
+    "nombre": "Maria",
+    "tipo": "EMBARAZADA",
+    "prioridad": 3,
+    "tiempo_llegada": 2,
+    "tiempo_finalizacion": 8,
+    "tiempo_espera": 3,
+    "tiempo_retorno": 6,
+    "fecha_atencion": "2026-06-25T08:26:46"
+  },
+  {
+    "nombre": "Luis",
+    "tipo": "REGULAR",
+    "prioridad": 4,
+    "tiempo_llegada": 3,
+    "tiempo_finalizacion": 12,
+    "tiempo_espera": 5,
+    "tiempo_retorno": 9,
+    "fecha_atencion": "2026-06-25T08:26:46"
+  },
+  {
+    "nombre": "Pedro",
+    "tipo": "FORANEO",
+    "prioridad": 5,
+    "tiempo_llegada": 4,
+    "tiempo_finalizacion": 17,
+    "tiempo_espera": 8,
+    "tiempo_retorno": 13,
+    "fecha_atencion": "2026-06-25T08:26:46"
+  },
+  {
+    "nombre": "Ana",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 0,
+    "tiempo_finalizacion": 2,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:30:13"
+  },
+  {
+    "nombre": "Carlos",
+    "tipo": "ADULTOMAYOR",
+    "prioridad": 2,
+    "tiempo_llegada": 1,
+    "tiempo_finalizacion": 5,
+    "tiempo_espera": 1,
+    "tiempo_retorno": 4,
+    "fecha_atencion": "2026-06-25T08:30:13"
+  },
+  {
+    "nombre": "María",
+    "tipo": "EMBARAZADA",
+    "prioridad": 3,
+    "tiempo_llegada": 2,
+    "tiempo_finalizacion": 8,
+    "tiempo_espera": 3,
+    "tiempo_retorno": 6,
+    "fecha_atencion": "2026-06-25T08:30:13"
+  },
+  {
+    "nombre": "Luis",
+    "tipo": "REGULAR",
+    "prioridad": 4,
+    "tiempo_llegada": 3,
+    "tiempo_finalizacion": 12,
+    "tiempo_espera": 5,
+    "tiempo_retorno": 9,
+    "fecha_atencion": "2026-06-25T08:30:13"
+  },
+  {
+    "nombre": "Pedro",
+    "tipo": "FORANEO",
+    "prioridad": 5,
+    "tiempo_llegada": 4,
+    "tiempo_finalizacion": 17,
+    "tiempo_espera": 8,
+    "tiempo_retorno": 13,
+    "fecha_atencion": "2026-06-25T08:30:13"
+  },
+  {
+    "nombre": "Ana",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 0,
+    "tiempo_finalizacion": 2,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:30:15"
+  },
+  {
+    "nombre": "Carlos",
+    "tipo": "ADULTOMAYOR",
+    "prioridad": 2,
+    "tiempo_llegada": 1,
+    "tiempo_finalizacion": 5,
+    "tiempo_espera": 1,
+    "tiempo_retorno": 4,
+    "fecha_atencion": "2026-06-25T08:30:15"
+  },
+  {
+    "nombre": "María",
+    "tipo": "EMBARAZADA",
+    "prioridad": 3,
+    "tiempo_llegada": 2,
+    "tiempo_finalizacion": 8,
+    "tiempo_espera": 3,
+    "tiempo_retorno": 6,
+    "fecha_atencion": "2026-06-25T08:30:15"
+  },
+  {
+    "nombre": "Luis",
+    "tipo": "REGULAR",
+    "prioridad": 4,
+    "tiempo_llegada": 3,
+    "tiempo_finalizacion": 12,
+    "tiempo_espera": 5,
+    "tiempo_retorno": 9,
+    "fecha_atencion": "2026-06-25T08:30:15"
+  },
+  {
+    "nombre": "Pedro",
+    "tipo": "FORANEO",
+    "prioridad": 5,
+    "tiempo_llegada": 4,
+    "tiempo_finalizacion": 17,
+    "tiempo_espera": 8,
+    "tiempo_retorno": 13,
+    "fecha_atencion": "2026-06-25T08:30:15"
+  },
+  {
+    "nombre": "Ana",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 0,
+    "tiempo_finalizacion": 2,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:30:18"
+  },
+  {
+    "nombre": "Carlos",
+    "tipo": "ADULTOMAYOR",
+    "prioridad": 2,
+    "tiempo_llegada": 1,
+    "tiempo_finalizacion": 5,
+    "tiempo_espera": 1,
+    "tiempo_retorno": 4,
+    "fecha_atencion": "2026-06-25T08:30:18"
+  },
+  {
+    "nombre": "María",
+    "tipo": "EMBARAZADA",
+    "prioridad": 3,
+    "tiempo_llegada": 2,
+    "tiempo_finalizacion": 8,
+    "tiempo_espera": 3,
+    "tiempo_retorno": 6,
+    "fecha_atencion": "2026-06-25T08:30:18"
+  },
+  {
+    "nombre": "Luis",
+    "tipo": "REGULAR",
+    "prioridad": 4,
+    "tiempo_llegada": 3,
+    "tiempo_finalizacion": 12,
+    "tiempo_espera": 5,
+    "tiempo_retorno": 9,
+    "fecha_atencion": "2026-06-25T08:30:18"
+  },
+  {
+    "nombre": "Pedro",
+    "tipo": "FORANEO",
+    "prioridad": 5,
+    "tiempo_llegada": 4,
+    "tiempo_finalizacion": 17,
+    "tiempo_espera": 8,
+    "tiempo_retorno": 13,
+    "fecha_atencion": "2026-06-25T08:30:18"
+  },
+  {
+    "nombre": "Ana",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 0,
+    "tiempo_finalizacion": 2,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:30:37"
+  },
+  {
+    "nombre": "Carlos",
+    "tipo": "ADULTOMAYOR",
+    "prioridad": 2,
+    "tiempo_llegada": 1,
+    "tiempo_finalizacion": 5,
+    "tiempo_espera": 1,
+    "tiempo_retorno": 4,
+    "fecha_atencion": "2026-06-25T08:30:37"
+  },
+  {
+    "nombre": "María",
+    "tipo": "EMBARAZADA",
+    "prioridad": 3,
+    "tiempo_llegada": 2,
+    "tiempo_finalizacion": 13,
+    "tiempo_espera": 8,
+    "tiempo_retorno": 11,
+    "fecha_atencion": "2026-06-25T08:30:37"
+  },
+  {
+    "nombre": "Luis",
+    "tipo": "REGULAR",
+    "prioridad": 4,
+    "tiempo_llegada": 3,
+    "tiempo_finalizacion": 17,
+    "tiempo_espera": 10,
+    "tiempo_retorno": 14,
+    "fecha_atencion": "2026-06-25T08:30:37"
+  },
+  {
+    "nombre": "Pedro",
+    "tipo": "FORANEO",
+    "prioridad": 5,
+    "tiempo_llegada": 4,
+    "tiempo_finalizacion": 22,
+    "tiempo_espera": 13,
+    "tiempo_retorno": 18,
+    "fecha_atencion": "2026-06-25T08:30:37"
+  },
+  {
+    "nombre": "Wil",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 8,
+    "tiempo_finalizacion": 10,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:30:37"
+  },
+  {
+    "nombre": "Ana",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 0,
+    "tiempo_finalizacion": 2,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:30:39"
+  },
+  {
+    "nombre": "Carlos",
+    "tipo": "ADULTOMAYOR",
+    "prioridad": 2,
+    "tiempo_llegada": 1,
+    "tiempo_finalizacion": 5,
+    "tiempo_espera": 1,
+    "tiempo_retorno": 4,
+    "fecha_atencion": "2026-06-25T08:30:39"
+  },
+  {
+    "nombre": "María",
+    "tipo": "EMBARAZADA",
+    "prioridad": 3,
+    "tiempo_llegada": 2,
+    "tiempo_finalizacion": 13,
+    "tiempo_espera": 8,
+    "tiempo_retorno": 11,
+    "fecha_atencion": "2026-06-25T08:30:39"
+  },
+  {
+    "nombre": "Luis",
+    "tipo": "REGULAR",
+    "prioridad": 4,
+    "tiempo_llegada": 3,
+    "tiempo_finalizacion": 17,
+    "tiempo_espera": 10,
+    "tiempo_retorno": 14,
+    "fecha_atencion": "2026-06-25T08:30:39"
+  },
+  {
+    "nombre": "Pedro",
+    "tipo": "FORANEO",
+    "prioridad": 5,
+    "tiempo_llegada": 4,
+    "tiempo_finalizacion": 22,
+    "tiempo_espera": 13,
+    "tiempo_retorno": 18,
+    "fecha_atencion": "2026-06-25T08:30:39"
+  },
+  {
+    "nombre": "Wil",
+    "tipo": "VIP",
+    "prioridad": 1,
+    "tiempo_llegada": 8,
+    "tiempo_finalizacion": 10,
+    "tiempo_espera": 0,
+    "tiempo_retorno": 2,
+    "fecha_atencion": "2026-06-25T08:30:39"
+  }
+]
