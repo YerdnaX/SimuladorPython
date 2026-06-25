@@ -19,11 +19,11 @@ from modelos.segmento_ejecucion import SegmentoEjecucion
 
 # ── Conversión de unidades de tiempo a formato horario ───────────────────────
 _HORA_BASE_MIN = 7 * 60   # 7:00 AM en minutos
-_MIN_POR_UNIDAD = 10      # cada unidad = 10 minutos
+_MIN_POR_UNIDAD = 1       # cada unidad (tick) = 1 minuto
 
 
 def tick_a_hora(t: int) -> str:
-    """Unidad de tiempo → 'HH:MM'  (base 07:00, cada unidad = 10 min)."""
+    """Unidad de tiempo → 'HH:MM'  (base 07:00, cada unidad = 1 min)."""
     total = _HORA_BASE_MIN + t * _MIN_POR_UNIDAD
     return f"{total // 60:02d}:{total % 60:02d}"
 

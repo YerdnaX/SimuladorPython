@@ -205,7 +205,7 @@ class VentanaPrincipal(QMainWindow):
 
         layout.addStretch()
 
-        lbl_ver = QLabel("v2.0  —  CUC 2026")
+        lbl_ver = QLabel("Arquitectura y Sistemas Operativos - CUC 2026")
         lbl_ver.setFont(QFont("Segoe UI", 7))
         lbl_ver.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         lbl_ver.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
@@ -287,7 +287,7 @@ class VentanaPrincipal(QMainWindow):
 
         self._btn_agregar_proceso = crear_boton("+ Agregar", _BTN_ACCION, 88, 28)
         self._btn_eliminar_proceso = crear_boton("Eliminar", _BTN_PELIGRO, 82, 28)
-        self._btn_cargar_archivo = crear_boton("Archivo", _BTN_NEUTRO, 78, 28)
+        self._btn_cargar_archivo = crear_boton("Cargar TXT", _BTN_NEUTRO, 78, 28)
 
         self._btn_agregar_proceso.clicked.connect(self._al_agregar_proceso)
         self._btn_eliminar_proceso.clicked.connect(self._al_eliminar_proceso)
