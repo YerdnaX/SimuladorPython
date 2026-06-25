@@ -172,7 +172,27 @@ class PanelEmergencias(QWidget):
         # ── Sección: Configuración MLQ ────────────────────────────────────────
         lay.addWidget(self._seccion_lbl("CONFIGURACIÓN MLQ"))
 
-        tarjeta_mlq = TarjetaTema("Algoritmos por cola de prioridad")
+        # Badge: indica que Emergencias siempre usa MLQ
+        badge_mlq = QWidget()
+        badge_mlq.setFixedHeight(30)
+        badge_mlq.setStyleSheet(
+            "background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px;"
+        )
+        hb_badge = QHBoxLayout(badge_mlq)
+        hb_badge.setContentsMargins(10, 4, 10, 4)
+        hb_badge.setSpacing(6)
+        lbl_badge_ico = QLabel("⚙")
+        lbl_badge_ico.setFont(QFont("Segoe UI", 9))
+        lbl_badge_ico.setStyleSheet("color: #1D4ED8; background: transparent;")
+        lbl_badge_txt = QLabel("Algoritmo global: <b>MLQ (Multi-Level Queue)</b>")
+        lbl_badge_txt.setFont(QFont("Segoe UI", 8))
+        lbl_badge_txt.setStyleSheet("color: #1E40AF; background: transparent;")
+        hb_badge.addWidget(lbl_badge_ico)
+        hb_badge.addWidget(lbl_badge_txt)
+        hb_badge.addStretch()
+        lay.addWidget(badge_mlq)
+
+        tarjeta_mlq = TarjetaTema("Sub-algoritmo por cola de prioridad")
         tarjeta_mlq.setFixedHeight(172)
         inner_mlq = QWidget(tarjeta_mlq)
         inner_mlq.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 136)

@@ -136,14 +136,7 @@ class VentanaPrincipal(QMainWindow):
         titulo.setFont(f_tit)
         titulo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_PRIMARIO)}; background: transparent;")
 
-        subtitulo = QLabel(
-            "FIFO  ·  SJF  ·  Round Robin  ·  MLQ — Visualización de Gantt en tiempo real"
-        )
-        subtitulo.setFont(fuente_pequena())
-        subtitulo.setStyleSheet(f"color: {a_css(COLOR_TEXTO_MUTED)}; background: transparent;")
-
         col.addWidget(titulo)
-        col.addWidget(subtitulo)
         layout.addWidget(bloque_texto)
         layout.addStretch()
 
