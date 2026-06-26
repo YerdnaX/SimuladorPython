@@ -24,7 +24,7 @@ from interfaz.tema import (
     COLOR_SUPERFICIE_ELEV, COLOR_BORDE, COLOR_BORDE_FUERTE,
     COLOR_ACENTO, COLOR_ACENTO_BRILLANTE, COLOR_ACENTO_CYAN,
     COLOR_TEXTO_PRIMARIO, COLOR_TEXTO_SECUNDARIO, COLOR_TEXTO_MUTED,
-    COLOR_EXITO, COLOR_PELIGRO, COLOR_ADVERTENCIA, COLOR_PURPURA,
+    COLOR_EXITO, COLOR_PELIGRO, COLOR_ADVERTENCIA,
     COLORES_PROCESOS,
     fuente_h1, fuente_h2, fuente_base, fuente_pequena, fuente_seccion,
     fuente_mono, fuente_mono_grande,
@@ -68,7 +68,6 @@ _BTN_ACCION  = COLOR_EXITO
 _BTN_PELIGRO = COLOR_PELIGRO
 _BTN_NEUTRO  = COLOR_ACENTO
 _BTN_PAUSA   = QColor(180, 110, 0)
-_BTN_RESET   = COLOR_PURPURA
 
 
 class PanelEmergencias(QWidget):
@@ -170,7 +169,7 @@ class PanelEmergencias(QWidget):
         lay.addWidget(tarjeta_pac)
 
         # ── Sección: Configuración MLQ ────────────────────────────────────────
-        lay.addWidget(self._seccion_lbl("CONFIGURACIÓN MLQ"))
+        lay.addWidget(self._seccion_lbl("MLQ"))
 
         # Badge: indica que Emergencias siempre usa MLQ
         badge_mlq = QWidget()
@@ -178,21 +177,8 @@ class PanelEmergencias(QWidget):
         badge_mlq.setStyleSheet(
             "background: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px;"
         )
-        hb_badge = QHBoxLayout(badge_mlq)
-        hb_badge.setContentsMargins(10, 4, 10, 4)
-        hb_badge.setSpacing(6)
-        lbl_badge_ico = QLabel("⚙")
-        lbl_badge_ico.setFont(QFont("Segoe UI", 9))
-        lbl_badge_ico.setStyleSheet("color: #1D4ED8; background: transparent;")
-        lbl_badge_txt = QLabel("Algoritmo global: <b>MLQ (Multi-Level Queue)</b>")
-        lbl_badge_txt.setFont(QFont("Segoe UI", 8))
-        lbl_badge_txt.setStyleSheet("color: #1E40AF; background: transparent;")
-        hb_badge.addWidget(lbl_badge_ico)
-        hb_badge.addWidget(lbl_badge_txt)
-        hb_badge.addStretch()
-        lay.addWidget(badge_mlq)
 
-        tarjeta_mlq = TarjetaTema("Sub-algoritmo por cola de prioridad")
+        tarjeta_mlq = TarjetaTema("Configuraciones de colas")
         tarjeta_mlq.setFixedHeight(172)
         inner_mlq = QWidget(tarjeta_mlq)
         inner_mlq.setGeometry(0, TarjetaTema.ALTURA_CABECERA, 400, 136)
@@ -259,20 +245,13 @@ class PanelEmergencias(QWidget):
         fila_btn_ctrl = QHBoxLayout()
         self._btn_ejecutar = crear_boton("▶  Ejecutar",  _BTN_ACCION,  98, 32)
         self._btn_pausar   = crear_boton("⏸  Pausar",   _BTN_PAUSA,   84, 32)
-        self._btn_paso     = crear_boton("⏭  Paso",     _BTN_NEUTRO,  74, 32)
-        self._btn_reset    = crear_boton("↺  Reset",    _BTN_RESET,   72, 32)
         self._btn_pausar.setEnabled(False)
-        self._btn_paso.setEnabled(False)
 
         self._btn_ejecutar.clicked.connect(self._al_ejecutar)
         self._btn_pausar.clicked.connect(self._al_pausar)
-        self._btn_paso.clicked.connect(self._al_paso)
-        self._btn_reset.clicked.connect(self._al_reset)
 
         fila_btn_ctrl.addWidget(self._btn_ejecutar)
         fila_btn_ctrl.addWidget(self._btn_pausar)
-        fila_btn_ctrl.addWidget(self._btn_paso)
-        fila_btn_ctrl.addWidget(self._btn_reset)
         fila_btn_ctrl.addStretch()
         lay_ctrl.addLayout(fila_btn_ctrl)
 
@@ -396,7 +375,7 @@ class PanelEmergencias(QWidget):
         splitter_v.addWidget(tarjeta_gantt)
 
         # Log paso a paso
-        tarjeta_log = TarjetaTema("Secuencia de ejecución — log paso a paso")
+        tarjeta_log = TarjetaTema("Terminal")
         lay_log = QVBoxLayout(tarjeta_log)
         lay_log.setContentsMargins(0, 0, 0, 0)
 
@@ -744,7 +723,6 @@ class PanelEmergencias(QWidget):
 
         self._btn_ejecutar.setEnabled(False)
         self._btn_pausar.setEnabled(True)
-        self._btn_paso.setEnabled(True)
 
         self._log("=" * 60)
         self._log(f"  INICIO DE SIMULACIÓN — {datetime.now().strftime('%H:%M:%S')}")
@@ -774,20 +752,12 @@ class PanelEmergencias(QWidget):
             self._log(f"[continuando...] ▶")
             self._timer.start(self._spin_vel.value())
 
-    def _al_paso(self):
-        if self._simulacion_en_curso:
-            return
-        if self._indice_seg < len(self._segmentos_pendientes):
-            self._modo_paso = True
-            self._ejecutar_tick()
-
     def _al_reset(self):
         self._timer.stop()
         self._simulacion_en_curso = False
         self._modo_paso = False
         self._btn_ejecutar.setEnabled(True)
         self._btn_pausar.setEnabled(False)
-        self._btn_paso.setEnabled(False)
         self._btn_pausar.setText("⏸  Pausar")
         self._btn_pausar.setStyleSheet(css_boton(_BTN_PAUSA))
         self._lbl_reloj.setText("07:00")
@@ -814,7 +784,6 @@ class PanelEmergencias(QWidget):
             self._simulacion_en_curso = False
             self._btn_ejecutar.setEnabled(True)
             self._btn_pausar.setEnabled(False)
-            self._btn_paso.setEnabled(False)
             self._finalizar_simulacion()
             return
 

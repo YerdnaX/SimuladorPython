@@ -17,7 +17,7 @@ from interfaz.tema import (
     COLOR_TEXTO_PRIMARIO, COLOR_TEXTO_SECUNDARIO, COLOR_TEXTO_MUTED,
     COLOR_EXITO, COLOR_EXITO_OSCURO,
     COLOR_PELIGRO, COLOR_PELIGRO_OSCURO,
-    COLOR_ADVERTENCIA, COLOR_PURPURA,
+    COLOR_ADVERTENCIA,
     COLORES_PROCESOS,
     fuente_h1, fuente_h2, fuente_base, fuente_pequena,
     fuente_seccion, fuente_mono_grande, fuente_mono,
@@ -53,7 +53,6 @@ _BTN_ACCION   = COLOR_EXITO            # Verde para ejecutar / agregar
 _BTN_PELIGRO  = COLOR_PELIGRO          # Rojo para eliminar / cancelar
 _BTN_NEUTRO   = COLOR_ACENTO           # Azul para archivo / comparar
 _BTN_PAUSA    = QColor(180, 110,  0)   # Ámbar para pausa
-_BTN_RESET    = COLOR_PURPURA          # Púrpura para reset
 _COLOR_MEJOR_BG  = QColor(210, 248, 220)  # Fondo verde suave (resaltado)
 _COLOR_MEJOR_FG  = QColor(25,  90,  45)   # Texto verde oscuro
 
@@ -378,16 +377,13 @@ class VentanaPrincipal(QMainWindow):
         fila_ctrl = QHBoxLayout()
         self._btn_ejecutar = crear_boton("▶  Ejecutar", _BTN_ACCION, 104, 34)
         self._btn_pausar   = crear_boton("⏸  Pausar",  _BTN_PAUSA,   94, 34)
-        self._btn_reset    = crear_boton("↺  Reset",   _BTN_RESET,   82, 34)
         self._btn_pausar.setEnabled(False)
 
         self._btn_ejecutar.clicked.connect(self._al_ejecutar)
         self._btn_pausar.clicked.connect(self._al_pausar)
-        self._btn_reset.clicked.connect(self._al_reset)
 
         fila_ctrl.addWidget(self._btn_ejecutar)
         fila_ctrl.addWidget(self._btn_pausar)
-        fila_ctrl.addWidget(self._btn_reset)
         fila_ctrl.addStretch()
         layout_ctrl.addLayout(fila_ctrl)
 
@@ -531,7 +527,7 @@ class VentanaPrincipal(QMainWindow):
         layout_banda.setSpacing(5)
 
         self._btn_comparar = crear_boton(
-            "Comparar con procesos actuales", _BTN_NEUTRO, 260, 34
+            "Comparar Procesos en Memoria", _BTN_NEUTRO, 260, 34
         )
         self._btn_comparar.clicked.connect(self._al_comparar)
         layout_banda.addWidget(self._btn_comparar)

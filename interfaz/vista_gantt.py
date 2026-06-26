@@ -354,6 +354,7 @@ class VistaGantt(QWidget):
 
         rect = QRectF(x, y, max(w, 2), h)
         radio = min(6, h // 3)
+        es_en_progreso = fin_dibujado < bloque.fin_real
 
         path = QPainterPath()
         path.addRoundedRect(rect, radio, radio)
@@ -365,6 +366,42 @@ class VistaGantt(QWidget):
         grad.setColorAt(1.0, oscurecer(color, 22))
         painter.setRenderHint(QPainter.Antialiasing)
         painter.fillPath(path, grad)
+
+        # En progreso: mostrar "cuadros" por unidad para evidenciar el llenado.
+        if es_en_progreso and rect.width() > (_PX_POR_UNIDAD * 0.45):
+            inicio_visible = max(bloque.inicio, (scroll_x - _MARGEN_IZQ) // _PX_POR_UNIDAD - 1)
+            for t in range(inicio_visible, fin_dibujado):
+                celda_x = _MARGEN_IZQ + t * _PX_POR_UNIDAD - scroll_x + PAD_H + 1
+                celda_w = _PX_POR_UNIDAD - 4
+                x0 = max(celda_x, rect.x() + 1)
+                x1 = min(celda_x + celda_w, rect.x() + rect.width() - 1)
+                if x1 <= x0:
+                    continue
+
+                celda = QRectF(x0, rect.y() + 1.5, x1 - x0, max(2.0, rect.height() - 3.0))
+                celda_path = QPainterPath()
+                celda_path.addRoundedRect(celda, 3, 3)
+
+                celda_grad = QLinearGradient(celda.left(), celda.top(), celda.right(), celda.bottom())
+                if (t - bloque.inicio) % 2 == 0:
+                    celda_grad.setColorAt(0.0, QColor(255, 255, 255, 60))
+                    celda_grad.setColorAt(1.0, QColor(0, 0, 0, 18))
+                else:
+                    celda_grad.setColorAt(0.0, QColor(255, 255, 255, 35))
+                    celda_grad.setColorAt(1.0, QColor(0, 0, 0, 10))
+                painter.fillPath(celda_path, celda_grad)
+
+                painter.setPen(QPen(QColor(255, 255, 255, 45), 0.8))
+                painter.drawPath(celda_path)
+
+            # Frente de avance del llenado.
+            frente_x = _MARGEN_IZQ + fin_dibujado * _PX_POR_UNIDAD - scroll_x
+            if rect.left() < frente_x < rect.right():
+                glow = QLinearGradient(frente_x - 12, 0, frente_x + 8, 0)
+                glow.setColorAt(0.0, QColor(255, 255, 255, 0))
+                glow.setColorAt(0.45, QColor(255, 255, 255, 95))
+                glow.setColorAt(1.0, QColor(255, 255, 255, 0))
+                painter.fillRect(QRectF(max(rect.left(), frente_x - 12), rect.top(), 20, rect.height()), glow)
 
         if rect.width() > 6:
             brillo_rect = QRectF(rect.x() + 2, rect.y() + 2,
